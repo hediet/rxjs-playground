@@ -2,12 +2,18 @@ import * as React from "react";
 import { Model } from "./Model";
 import classnames = require("classnames");
 import { observer, disposeOnUnmount } from "mobx-react";
-import { ObservableHistory, EventHistory } from "./Series";
+import { SingleObservableHistory, EventHistory } from "./Series";
 import { Point } from "./Point";
+import { binarySearch } from "./utils";
+import { number } from "prop-types";
+import { ObservableMap, autorun } from "mobx";
 
+@observer
 export class HistoryVisualizer extends React.Component<{
 	history: EventHistory;
 }> {
+	private widths = new ObservableMap<number, number>();
+
 	render() {
 		const series = this.props.history;
 		const timeScaleFactor = 30 / series.minTimeDistanceBetweenItems;
@@ -21,22 +27,26 @@ export class HistoryVisualizer extends React.Component<{
 		const lastTime = series.lastTime;
 		const height = pointsStart.y + getYOffset(lastTime) + 50;
 
-		const axisDYRange = [5, 50];
-		const axitDTRange = [
+		const axisDYRange = [35, 60];
+		const axisDTRange = [
 			axisDYRange[0] / timeScaleFactor,
 			axisDYRange[1] / timeScaleFactor,
 		];
-		console.log("axitDTRange", axitDTRange);
-		const axisDT = 2;
+		console.log("axitDTRange", axisDTRange);
 
-		// 1
-		// 5
-		// 10
-		// 20
-		// 100
+		function f(k: number) {
+			const factors = [1, 2, 2.5, 5];
+			return (
+				factors[k % factors.length] *
+				Math.pow(10, Math.floor(k / factors.length))
+			);
+		}
+
+		const t = binarySearch(t => f(t) >= axisDTRange[0]);
+		const axisDT = f(t);
 
 		return (
-			<svg className="series" height={height} width={800}>
+			<svg className="series" height={height} width={1200}>
 				<SvgLine
 					start={pointsStart.minus(new Point(20, 0))}
 					end={pointsStart
@@ -71,44 +81,79 @@ export class HistoryVisualizer extends React.Component<{
 					})}
 
 				{series.observables.map((obsHistory, obsIdx) => {
-					const pointsStart2 = pointsStart.plus(
-						new Point(obsIdx * 200, 0)
-					);
+					let prevWidth = 0;
+					for (let i = 0; i < obsIdx; i++) {
+						const w = this.widths.get(i) || 200;
+						prevWidth += w;
+					}
 
 					return (
-						<g>
-							<SvgLine
-								start={pointsStart2}
-								end={pointsStart2.plus(
-									new Point(0, getYOffset(lastTime))
-								)}
-								stroke="black"
-							/>
-							{obsHistory.items.map((i, idx) => {
-								const p = pointsStart2.plus(
-									new Point(0, getYOffset(i.time))
-								);
-								return (
-									<g key={idx}>
-										<SvgCircle
-											center={p}
-											radius={4}
-											stroke="black"
-										/>
-										<SvgText
-											position={p.plus(new Point(10, 0))}
-											textAnchor="start"
-											dominantBaseline="middle"
-										>
-											{JSON.stringify(i.data)}
-										</SvgText>
-									</g>
-								);
-							})}
-						</g>
+						<SingleObservableHistoryVisualizer
+							history={obsHistory}
+							getYOffset={getYOffset}
+							start={pointsStart.plus(new Point(prevWidth, 0))}
+							lastTime={lastTime}
+							setWidth={w => this.widths.set(obsIdx, w)}
+						/>
 					);
 				})}
 			</svg>
+		);
+	}
+}
+
+class SingleObservableHistoryVisualizer extends React.Component<{
+	history: SingleObservableHistory;
+	getYOffset: (t: number) => number;
+	start: Point;
+	lastTime: number;
+	setWidth: (t: number) => void;
+}> {
+	private widths = new ObservableMap<number, number>();
+
+	@disposeOnUnmount
+	private readonly updateWidth = autorun(() => {
+		let max = 20;
+		for (const width of this.widths.values()) {
+			max = Math.max(max, width);
+		}
+		this.props.setWidth(max + 20);
+	});
+
+	render() {
+		const start = this.props.start;
+
+		return (
+			<g>
+				<SvgLine
+					start={start}
+					end={start.plus(
+						new Point(0, this.props.getYOffset(this.props.lastTime))
+					)}
+					stroke="black"
+				/>
+				{this.props.history.items.map((i, idx) => {
+					const p = start.plus(
+						new Point(0, this.props.getYOffset(i.time))
+					);
+					return (
+						<g key={idx}>
+							<SvgCircle center={p} radius={4} stroke="black" />
+							<SvgText
+								childRef={text => {
+									if (!text) return;
+									this.widths.set(idx, text.getBBox().width);
+								}}
+								position={p.plus(new Point(10, 0))}
+								textAnchor="start"
+								dominantBaseline="middle"
+							>
+								{JSON.stringify(i.data)}
+							</SvgText>
+						</g>
+					);
+				})}
+			</g>
 		);
 	}
 }
@@ -133,6 +178,7 @@ interface SvgAttributes {
 function SvgText(props: {
 	position: Point;
 	children: string;
+	childRef?: React.Ref<SVGTextElement>;
 	textAnchor?: "middle" | "end" | "start";
 	dominantBaseline?: "central" | "middle";
 }) {
@@ -140,7 +186,8 @@ function SvgText(props: {
 		<text
 			x={props.position.x}
 			y={props.position.y}
-			{...omit(props, ["position"])}
+			ref={props.childRef}
+			{...omit(props, ["position", "childRef"])}
 		/>
 	);
 }
