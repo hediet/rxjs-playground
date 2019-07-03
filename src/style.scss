@@ -2,6 +2,39 @@ body {
 	font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
-svg.series {
-	background: lighten(lightgray, 10%);
+html,
+body,
+.target {
+	margin: 0;
+	height: 100%;
+}
+
+.target {
+	box-sizing: border-box;
+	padding: 10px;
+}
+
+.gui {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+
+	.visualizer {
+		position: relative;
+		overflow: auto;
+		border: 1px black solid;
+		flex: 1;
+
+		width: 1000px;
+	}
+}
+
+.historyVisualizer {
+	height: 100%;
+	margin-right: auto;
+
+	svg {
+		width: 100%;
+		box-sizing: border-box;
+	}
 }

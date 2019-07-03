@@ -2,21 +2,36 @@ function sqr(a: number) {
 	return a * a;
 }
 
+export type PointLike =
+	| Point
+	| { x?: number; y: number }
+	| { x: number; y?: number };
+
+export function point(data: PointLike) {
+	if (data instanceof Point) {
+		return data;
+	}
+	return new Point(data.x || 0, data.y || 0);
+}
+
 export class Point {
+	public static readonly Zero = new Point(0, 0);
+
 	constructor(public readonly x: number, public readonly y: number) {}
 
-	public distance(other: Point = Zero): number {
-		var dx = this.x - other.x;
-		var dy = this.y - other.y;
-		return Math.sqrt(sqr(dx) + sqr(dy));
+	public distance(other: PointLike = Point.Zero): number {
+		const d = this.sub(other);
+		return Math.sqrt(sqr(d.x) + sqr(d.y));
 	}
 
-	public minus(other: Point): Point {
-		return new Point(this.x - other.x, this.y - other.y);
+	public sub(other: PointLike): Point {
+		const o = point(other);
+		return new Point(this.x - o.x, this.y - o.y);
 	}
 
-	public plus(other: Point): Point {
-		return new Point(this.x + other.x, this.y + other.y);
+	public add(other: PointLike): Point {
+		const o = point(other);
+		return new Point(this.x + o.x, this.y + o.y);
 	}
 
 	public mul(scalar: number): Point {
@@ -27,14 +42,15 @@ export class Point {
 		return new Point(this.x / scalar, this.y / scalar);
 	}
 
-	public equals(other: Point) {
-		return this.x === other.x && this.y === other.y;
+	public equals(other: PointLike) {
+		const o = point(other);
+		return this.x === o.x && this.y === o.y;
 	}
 
-	public getPointCloserTo(dest: Point, dist: number): Point {
+	public getPointCloserTo(dest: PointLike, dist: number): Point {
 		if (this.equals(dest)) return this;
 
-		var p = dest.minus(this);
+		var p = point(dest).sub(this);
 		const angle = Math.atan2(p.x, p.y);
 
 		var result = new Point(
@@ -44,8 +60,6 @@ export class Point {
 		return result;
 	}
 }
-
-export const Zero = new Point(0, 0);
 
 function turn(p1: Point, p2: Point, p3: Point): number {
 	const a = p1.x;
@@ -85,10 +99,10 @@ export function scale(
 	if (clientRatio < viewRatio) zoom = viewSize.y / clientSize.y;
 	else zoom = viewSize.x / clientSize.x;
 
-	const clientMid = clientOffset.mul(zoom).plus(clientSize.mul(zoom / 2));
+	const clientMid = clientOffset.mul(zoom).add(clientSize.mul(zoom / 2));
 	const viewMid = viewSize.div(2);
 
-	const clientOffset2 = viewMid.minus(clientMid);
+	const clientOffset2 = viewMid.sub(clientMid);
 
 	return { clientOffset: clientOffset2, clientZoom: zoom };
 }
