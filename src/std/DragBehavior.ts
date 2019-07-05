@@ -90,28 +90,26 @@ export class DragOperation<TData> {
 	}>();
 	public readonly onEnd = this._onEnd.asEvent();
 
+	public readonly handleMouseEvent = (e: MouseEvent) => {
+		this.lastPosition = this.mousePositionTransformation.transform(
+			new Point(e.clientX, e.clientY)
+		);
+
+		this._onDrag.emit({
+			position: this.lastPosition!,
+			data: this.data,
+		});
+	};
+
 	constructor(
 		public readonly data: TData,
-		mousePositionTransformation: PositionTransformation
+		private readonly mousePositionTransformation: PositionTransformation
 	) {
-		let f2: any;
-		window.addEventListener(
-			"mousemove",
-			(f2 = (e: MouseEvent) => {
-				this.lastPosition = mousePositionTransformation.transform(
-					new Point(e.clientX, e.clientY)
-				);
-
-				this._onDrag.emit({
-					position: this.lastPosition!,
-					data: this.data,
-				});
-			})
-		);
+		window.addEventListener("mousemove", this.handleMouseEvent);
 
 		this.dispose.track({
 			dispose: () => {
-				window.removeEventListener("mousemove", f2);
+				window.removeEventListener("mousemove", this.handleMouseEvent);
 			},
 		});
 	}

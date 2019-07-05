@@ -28,6 +28,8 @@ import {
 	tap,
 	last,
 	scan,
+	debounce,
+	debounceTime,
 } from "rxjs/operators";
 import { observable } from "mobx";
 import { TrackingHistoryGroup } from "./Model/Tracking";
@@ -65,8 +67,8 @@ interface Ringing {
 
 export const sampleGroups = new ObservableHistoryGroups();
 sampleGroups.groups.push(sampleData(sampleGroups, "data1"));
-sampleGroups.groups.push(sampleData(sampleGroups, "data2"));
-sampleGroups.groups.push(zipped(sampleGroups));
+//sampleGroups.groups.push(sampleData(sampleGroups, "data2"));
+sampleGroups.groups.push(toggle(sampleGroups));
 //sampleGroups.groups.push(toggle(sampleGroups));
 
 function sampleData(
@@ -93,10 +95,9 @@ function sampleData(
 
 function zipped(groups: ObservableHistoryGroups): ObservableHistoryGroup {
 	return new TrackingHistoryGroup("zip", (scheduler, track) => {
-		return zip(
-			groups.getResultingObservable("data1", scheduler),
-			groups.getResultingObservable("data2", scheduler)
-		);
+		return groups
+			.getResultingObservable("data1", scheduler)
+			.pipe(debounceTime(10, scheduler));
 	});
 }
 
@@ -105,7 +106,9 @@ function toggle(groups: ObservableHistoryGroups): ObservableHistoryGroup {
 		return groups.getResultingObservable("data1", scheduler).pipe(
 			scan(acc => !acc, false),
 			track(),
-			map(r => ({ r, t: scheduler.now() }))
+			map(r => ({ r, t: scheduler.now() })),
+			track(),
+			debounceTime(10, scheduler)
 		);
 	});
 }

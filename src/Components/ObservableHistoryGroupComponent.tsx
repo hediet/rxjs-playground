@@ -1,6 +1,6 @@
 import { observer } from "mobx-react";
 import { Point } from "../std/Point";
-import { ObservableMap, observable, autorun, computed } from "mobx";
+import { ObservableMap, observable, autorun, computed, toJS } from "mobx";
 import { SvgRect, SvgLine } from "../std/SvgElements";
 import {
 	ObservableHistoryGroup,
@@ -101,13 +101,15 @@ export class ObservableHistoryGroupComponent extends React.Component<{
 								new Point(e.clientX, e.clientY)
 							);
 							const t = scaling.getTime(p.y - 50);
-							group.group.history.addEvent(t, true);
+							group.group.history.addEvent(
+								t,
+								group.group.history.events.length + 1
+							);
 						}
 					}}
 					onMouseDown={e => {
 						e.preventDefault();
 						e.stopPropagation();
-
 						const op = groupDragBehavior
 							.start(
 								group,
@@ -122,6 +124,7 @@ export class ObservableHistoryGroupComponent extends React.Component<{
 						op.onDrag.sub(data => {
 							group.dragX = data.position.x;
 						});
+						op.handleMouseEvent(e.nativeEvent);
 
 						op.onEnd.sub(data => {
 							group.dragX = undefined;
