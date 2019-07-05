@@ -36,5 +36,25 @@ body,
 	svg {
 		width: 100%;
 		box-sizing: border-box;
+
+		circle,
+		text {
+			transition: 0.4s all;
+		}
+		.groupBorder {
+			stroke: gray;
+		}
 	}
+
+	.draggingEvent {
+		circle,
+		text {
+			transition: none;
+		}
+	}
+}
+
+.groupBackground {
+	fill: lighten(gray, 42%);
+	stroke: none;
 }

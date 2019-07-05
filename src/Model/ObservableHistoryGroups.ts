@@ -8,9 +8,10 @@ import {
 	of,
 } from "rxjs";
 import { tap, flatMap, delay, map } from "rxjs/operators";
+import { sortByNumericKey } from "../Components/utils";
 
 export class ObservableHistoryGroups {
-	public readonly groups = new Set<ObservableHistoryGroup>();
+	public readonly groups = new Array<ObservableHistoryGroup>();
 
 	public get minTimeDistanceBetweenItems(): number {
 		let minDist = Number.MAX_VALUE;
@@ -21,20 +22,55 @@ export class ObservableHistoryGroups {
 	}
 
 	public get lastTime(): number {
-		let last = 0;
+		let last = -Infinity;
 		for (const o of this.groups) {
 			last = Math.max(last, o.lastTime);
 		}
 		return last;
 	}
 
-	public getResultingObservableHistory(
+	public getResultingObservableHistoryOrUndefined(
 		name: string
-	): ObservableHistory | undefined {}
+	): ObservableHistory | undefined {
+		const group = this.groups.find(g => g.name === name);
+		if (group) {
+			return group.resultingObservableHistory;
+		}
+		return undefined;
+	}
+
+	public getResultingObservableHistory(name: string): ObservableHistory {
+		const r = this.getResultingObservableHistoryOrUndefined(name);
+		if (!r) {
+			throw new Error(`"${name}" does not exist.`);
+		}
+		return r;
+	}
+
+	public getResultingObservable<T>(
+		name: string,
+		scheduler: SchedulerLike
+	): Observable<T> {
+		const r = this.getResultingObservableHistory(name);
+		if (!r) {
+			throw new Error(`"${name}" does not exist.`);
+		}
+		return r.asObservable<T>(scheduler);
+	}
 }
+
+let id = 0;
 
 export abstract class ObservableHistoryGroup {
 	abstract get observables(): ReadonlyArray<ObservableHistory>;
+
+	@observable public name: string;
+
+	public readonly id = id++;
+
+	constructor(name: string) {
+		this.name = name;
+	}
 
 	public get minTimeDistanceBetweenItems(): number {
 		let minDist = Number.MAX_VALUE;
@@ -45,9 +81,11 @@ export abstract class ObservableHistoryGroup {
 	}
 
 	public get lastTime(): number {
-		let last = 0;
+		let last = -Infinity;
 		for (const o of this.observables) {
-			last = Math.max(last, o.last.time);
+			if (o.last) {
+				last = Math.max(last, o.last.time);
+			}
 		}
 		return last;
 	}
@@ -58,12 +96,13 @@ export abstract class ObservableHistoryGroup {
 }
 
 export abstract class ObservableHistory {
+	// are always sorted
 	public abstract get events(): ReadonlyArray<ObservableEvent>;
 
-	public asObservable(scheduler: SchedulerLike): Observable<unknown> {
+	public asObservable<T>(scheduler: SchedulerLike): Observable<T> {
 		return from(this.events).pipe(
 			flatMap(v => of(v).pipe(delay(v.time, scheduler))),
-			map(e => e.data)
+			map(e => e.data as T)
 		);
 	}
 
@@ -76,9 +115,10 @@ export abstract class ObservableHistory {
 	}
 
 	public get minTimeDistanceBetweenItems(): number {
-		let minDist = Number.MAX_VALUE;
-		for (let i = 1; i < this.events.length; i++) {
-			const dist = this.events[i].time - this.events[i - 1].time;
+		let minDist = Infinity;
+		const e = this.events;
+		for (let i = 1; i < e.length; i++) {
+			const dist = e[i].time - e[i - 1].time;
 			if (dist != 0) {
 				minDist = Math.min(minDist, dist);
 			}
@@ -87,49 +127,8 @@ export abstract class ObservableHistory {
 	}
 }
 
-export class ObservableEvent {
-	constructor(public readonly data: unknown, public readonly time: number) {}
-}
-
-export type TrackFn = <T>() => MonoTypeOperatorFunction<T>;
-
-export class TrackingHistoryGroup extends ObservableHistoryGroup {
-	@computed
-	public get observables(): ObservableHistory[] {
-		const scheduler = new VirtualTimeScheduler();
-		const observables = new Array<ObservableHistory>();
-
-		const trackFn: TrackFn = <T>() => {
-			const history = new TrackingObservableHistory();
-			observables.push(history);
-			return tap(n => {
-				history.trackedEvents.push(
-					new ObservableEvent(n, scheduler.now())
-				);
-			});
-		};
-		const obs = this.observableCtor(scheduler, trackFn).pipe(trackFn());
-		obs.subscribe();
-
-		scheduler.flush();
-
-		return this.observables;
-	}
-
-	constructor(
-		public readonly observableCtor: (
-			scheduler: SchedulerLike,
-			track: TrackFn
-		) => Observable<unknown>
-	) {
-		super();
-	}
-}
-
-export class TrackingObservableHistory extends ObservableHistory {
-	public get events(): ReadonlyArray<ObservableEvent> {
-		return this.trackedEvents;
-	}
-
-	@observable public trackedEvents = new Array<ObservableEvent>();
+export interface ObservableEvent {
+	readonly id: number;
+	readonly time: number;
+	readonly data: unknown;
 }

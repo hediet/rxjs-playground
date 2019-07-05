@@ -1,9 +1,7 @@
-import { observable, computed } from "mobx";
-import "./Series";
-import { SingleObservableHistory, sampleHistory } from "./Series";
+import { sampleGroups } from "./example";
 
 export class Model {
-	public readonly history = sampleHistory;
+	public readonly groups = sampleGroups;
 
 	constructor() {}
 }

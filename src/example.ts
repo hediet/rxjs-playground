@@ -1,7 +1,7 @@
 import {
 	ObservableHistoryGroups,
-	TrackingHistoryGroup,
-} from "./ObservableHistoryGroups";
+	ObservableHistoryGroup,
+} from "./Model/ObservableHistoryGroups";
 import {
 	SchedulerLike,
 	Observable,
@@ -15,6 +15,7 @@ import {
 	OperatorFunction,
 	Subject,
 	PartialObserver,
+	zip,
 } from "rxjs";
 import {
 	flatMap,
@@ -25,7 +26,12 @@ import {
 	mergeMap,
 	take,
 	tap,
+	last,
+	scan,
 } from "rxjs/operators";
+import { observable } from "mobx";
+import { TrackingHistoryGroup } from "./Model/Tracking";
+import { MutableObservableHistoryGroup } from "./Model/Mutable";
 
 function mergeFilter<T>(
 	predicate: (arg: T) => Observable<boolean>
@@ -52,30 +58,66 @@ function useSubject<T, O>(
 	};
 }
 
-function main(groups: ObservableHistoryGroups): TrackingHistoryGroup {
-	const h = groups.getResultingObservableHistory("ringings");
-	if (!h) throw new Error();
+interface Ringing {
+	r: boolean;
+	t: number;
+}
 
-	return new TrackingHistoryGroup((scheduler, track) => {
-		interface Ringing {
-			r: boolean;
-			t: number;
-		}
+export const sampleGroups = new ObservableHistoryGroups();
+sampleGroups.groups.push(sampleData(sampleGroups, "data1"));
+sampleGroups.groups.push(sampleData(sampleGroups, "data2"));
+sampleGroups.groups.push(zipped(sampleGroups));
+//sampleGroups.groups.push(toggle(sampleGroups));
 
-		const ringings: Ringing[] = [
-			{ r: true, t: 0 },
-			{ r: false, t: 8 },
-			{ r: true, t: 10 },
-			{ r: false, t: 35 },
-			{ r: true, t: 52 },
-			{ r: false, t: 55 },
-			{ r: true, t: 60 },
-			{ r: false, t: 100 },
-		];
+function sampleData(
+	groups: ObservableHistoryGroups,
+	name: string
+): ObservableHistoryGroup {
+	const group = new MutableObservableHistoryGroup(name);
+	const ringings: Ringing[] = [
+		{ r: true, t: 0 },
+		{ r: false, t: 8 },
+		{ r: true, t: 10 },
+		{ r: false, t: 35 },
+		{ r: true, t: 52 },
+		{ r: false, t: 55 },
+		{ r: true, t: 60 },
+		{ r: false, t: 100 },
+	];
+	let i = 1;
+	for (const r of ringings) {
+		group.history.addEvent(r.t, i++);
+	}
+	return group;
+}
 
-		return from(ringings).pipe(
-			flatMap(v => of(v).pipe(delay(v.t, scheduler))),
+function zipped(groups: ObservableHistoryGroups): ObservableHistoryGroup {
+	return new TrackingHistoryGroup("zip", (scheduler, track) => {
+		return zip(
+			groups.getResultingObservable("data1", scheduler),
+			groups.getResultingObservable("data2", scheduler)
+		);
+	});
+}
+
+function toggle(groups: ObservableHistoryGroups): ObservableHistoryGroup {
+	return new TrackingHistoryGroup("bla", (scheduler, track) => {
+		return groups.getResultingObservable("data1", scheduler).pipe(
+			scan(acc => !acc, false),
 			track(),
+			map(r => ({ r, t: scheduler.now() }))
+		);
+	});
+}
+
+function processedRingings(
+	groups: ObservableHistoryGroups
+): TrackingHistoryGroup {
+	return new TrackingHistoryGroup("processedRingings", (scheduler, track) => {
+		const h = groups.getResultingObservableHistory("ringings");
+		if (!h) throw new Error();
+
+		return h.asObservable<Ringing>(scheduler).pipe(
 			useSubject(futureEvents =>
 				mergeFilter(myEvent =>
 					race(
