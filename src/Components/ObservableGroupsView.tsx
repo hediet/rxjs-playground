@@ -1,48 +1,60 @@
 import { observer, disposeOnUnmount } from "mobx-react";
 import { Point } from "../std/Point";
-import { ObservableMap, autorun, observable, runInAction } from "mobx";
 import {
-	ObservableHistoryGroups,
-	ObservableHistoryGroup,
-} from "../Model/ObservableHistoryGroups";
+	ObservableMap,
+	autorun,
+	observable,
+	runInAction,
+	untracked,
+	reaction,
+} from "mobx";
+import { ObservableGroups, ObservableGroup } from "../Model/ObservableGroups";
 import { TimeAxis } from "./TimeAxis";
 import React = require("react");
 import {
 	SvgContext,
 	groupDragBehavior,
-	sortByNumericKey,
 	Scaling,
 	eventDragBehavior,
 } from "./utils";
-import {
-	ObservableHistoryGroupComponent,
-	GroupWrapper,
-} from "./ObservableHistoryGroupComponent";
+import { ObservableGroupView } from "./ObservableGroupView";
 import { Subject } from "rxjs";
 import { debounce, debounceTime } from "rxjs/operators";
 import classNames = require("classnames");
+import { ObservableGroupViewModel, PlaygroundViewModel } from "./ViewModels";
+import { sortByNumericKey } from "../std/utils";
 
 @observer
-export class ObservableHistoryGroupsComponent extends React.Component<{
-	groups: ObservableHistoryGroups;
+export class ObservableGroupsView extends React.Component<{
+	playground: PlaygroundViewModel;
 }> {
-	@observable private groups: GroupWrapper[] = [];
+	@observable private groups: ObservableGroupViewModel[] = [];
 
 	constructor(props: any) {
 		super(props);
 
-		autorun(() => {
-			this.groups = this.props.groups.groups.map(
-				g => new GroupWrapper(g)
-			);
-		});
+		reaction(
+			() => [...this.props.playground.groups.groups],
+			groups => {
+				this.groups = groups.map(
+					g =>
+						this.groups.find(w => w.group === g) ||
+						new ObservableGroupViewModel(g)
+				);
+			},
+			{ fireImmediately: true }
+		);
 
 		autorun(() => {
 			if (groupDragBehavior.activeOperation) {
 				groupDragBehavior.activeOperation.onEnd.sub(() => {
 					runInAction(() => {
-						if (this.lastGroupOrder) {
-							this.groups = this.lastGroupOrder;
+						if (this.lastGroupOrderWhileDragging) {
+							let i = -10000000;
+							for (const g of this.lastGroupOrderWhileDragging) {
+								g.group.position = i;
+								i++;
+							}
 						}
 					});
 				});
@@ -50,7 +62,9 @@ export class ObservableHistoryGroupsComponent extends React.Component<{
 		});
 	}
 
-	private lastGroupOrder: GroupWrapper[] | undefined = undefined;
+	private lastGroupOrderWhileDragging:
+		| ObservableGroupViewModel[]
+		| undefined = undefined;
 
 	private svgContext: SvgContext = { mouseToSvgCoordinates: undefined! };
 	private initializeContext(svg: SVGSVGElement | null) {
@@ -70,12 +84,12 @@ export class ObservableHistoryGroupsComponent extends React.Component<{
 	}
 
 	layoutGroups(): {
-		group: GroupWrapper;
+		group: ObservableGroupViewModel;
 		x: number;
 	}[] {
 		const repairX = (
 			arr: {
-				group: GroupWrapper;
+				group: ObservableGroupViewModel;
 				x: number;
 			}[]
 		) => {
@@ -88,7 +102,11 @@ export class ObservableHistoryGroupsComponent extends React.Component<{
 
 		const result = this.groups
 			.filter(g => !groupDragBehavior.isDataEqualTo(g))
-			.map(group => ({ group, x: 0 }));
+			.map((group, idx) => ({ group, x: 0, idx }));
+
+		result.sort(
+			sortByNumericKey(r => r.group.group.getPositionSortKey(r.idx))
+		);
 
 		repairX(result);
 
@@ -97,6 +115,7 @@ export class ObservableHistoryGroupsComponent extends React.Component<{
 			result.push({
 				group: op.data,
 				x: 0,
+				idx: -1,
 			});
 
 			result.sort(
@@ -107,7 +126,7 @@ export class ObservableHistoryGroupsComponent extends React.Component<{
 				)
 			);
 
-			this.lastGroupOrder = result.map(g => g.group);
+			this.lastGroupOrderWhileDragging = result.map(g => g.group);
 
 			repairX(result);
 		}
@@ -124,11 +143,11 @@ export class ObservableHistoryGroupsComponent extends React.Component<{
 	}
 
 	private getScaling(): Scaling {
-		const groups = this.props.groups;
+		const groups = this.props.playground.groups;
 		groups.minTimeDistanceBetweenItems;
 
 		const timeScaleFactor = Math.max(
-			1,
+			0.01,
 			Math.min(30, 20 / groups.minTimeDistanceBetweenItems)
 		);
 		return {
@@ -153,17 +172,36 @@ export class ObservableHistoryGroupsComponent extends React.Component<{
 		this.debounceSubject.next();
 	});
 
+	private div: HTMLDivElement | undefined = undefined;
+	@observable private minSvgHeight: number = 0;
+
+	private x = setInterval(() => {
+		if (this.div) {
+			this.minSvgHeight = this.div.clientHeight - 1;
+		}
+	}, 100);
+
+	private readonly setHistoryVisualizerDiv = (div: HTMLDivElement) => {
+		this.div = div;
+	};
+
 	render() {
-		const groups = this.props.groups;
+		const groups = this.props.playground.groups;
 		const scaling = this.scaling;
 
-		const pointsStart = new Point(80.5, 50);
+		const pointsStart = new Point(80.5, 30);
 
 		const lastTime = Math.max(1, groups.lastTime);
-		const height = pointsStart.y + scaling.getY(lastTime) + 50;
+		const height = Math.max(
+			this.minSvgHeight,
+			pointsStart.y + scaling.getY(lastTime) + 30
+		);
 
 		return (
-			<div className="historyVisualizer">
+			<div
+				className="historyVisualizer"
+				ref={this.setHistoryVisualizerDiv}
+			>
 				<svg
 					ref={svg => this.initializeContext(svg)}
 					height={height}
@@ -178,17 +216,19 @@ export class ObservableHistoryGroupsComponent extends React.Component<{
 				>
 					<TimeAxis
 						start={pointsStart.sub({ x: 30 })}
-						lastTime={lastTime}
+						height={height}
 						scaling={scaling}
 					/>
 
 					{this.layoutGroups().map(({ group, x }) => (
-						<ObservableHistoryGroupComponent
+						<ObservableGroupView
+							playground={this.props.playground}
 							key={group.group.id}
 							svgContext={this.svgContext}
 							scaling={scaling}
 							x={x}
-							{...{ group, height }}
+							group={group}
+							height={height}
 						/>
 					))}
 				</svg>

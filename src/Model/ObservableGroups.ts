@@ -1,21 +1,24 @@
-import { observable, computed } from "mobx";
-import {
-	SchedulerLike,
-	Observable,
-	VirtualTimeScheduler,
-	MonoTypeOperatorFunction,
-	from,
-	of,
-} from "rxjs";
-import { tap, flatMap, delay, map } from "rxjs/operators";
-import { sortByNumericKey } from "../Components/utils";
+import { observable } from "mobx";
+import { SchedulerLike, Observable, from, of, NEVER } from "rxjs";
+import { flatMap, delay, map, concat } from "rxjs/operators";
 
-export class ObservableHistoryGroups {
-	public readonly groups = new Array<ObservableHistoryGroup>();
+export class ObservableGroups {
+	@observable private readonly _groups = new Set<ObservableGroup>();
+	public get groups(): ReadonlySet<ObservableGroup> {
+		return this._groups;
+	}
+
+	public addGroup(group: ObservableGroup) {
+		this._groups.add(group);
+	}
+
+	public removeGroup(group: ObservableGroup) {
+		this._groups.delete(group);
+	}
 
 	public get minTimeDistanceBetweenItems(): number {
 		let minDist = Number.MAX_VALUE;
-		for (const o of this.groups) {
+		for (const o of this._groups) {
 			minDist = Math.min(minDist, o.minTimeDistanceBetweenItems);
 		}
 		return minDist;
@@ -23,7 +26,7 @@ export class ObservableHistoryGroups {
 
 	public get lastTime(): number {
 		let last = -Infinity;
-		for (const o of this.groups) {
+		for (const o of this._groups) {
 			last = Math.max(last, o.lastTime);
 		}
 		return last;
@@ -32,7 +35,7 @@ export class ObservableHistoryGroups {
 	public getResultingObservableHistoryOrUndefined(
 		name: string
 	): ObservableHistory | undefined {
-		const group = this.groups.find(g => g.name === name);
+		const group = [...this._groups].find(g => g.name === name);
 		if (group) {
 			return group.resultingObservableHistory;
 		}
@@ -61,16 +64,19 @@ export class ObservableHistoryGroups {
 
 let id = 0;
 
-export abstract class ObservableHistoryGroup {
+export abstract class ObservableGroup {
 	abstract get observables(): ReadonlyArray<ObservableHistory>;
-
-	@observable public name: string;
 
 	public readonly id = id++;
 
-	constructor(name: string) {
-		this.name = name;
+	@observable public name: string = `group ${this.id}`;
+	@observable public position: number = 0;
+
+	public getPositionSortKey(idx: number) {
+		return idx + this.position * 100000;
 	}
+
+	constructor() {}
 
 	public get minTimeDistanceBetweenItems(): number {
 		let minDist = Number.MAX_VALUE;
@@ -102,15 +108,22 @@ export abstract class ObservableHistory {
 	public asObservable<T>(scheduler: SchedulerLike): Observable<T> {
 		return from(this.events).pipe(
 			flatMap(v => of(v).pipe(delay(v.time, scheduler))),
-			map(e => e.data as T)
+			map(e => e.data as T),
+
+			concat(NEVER)
 		);
 	}
 
-	public get last(): ObservableEvent {
+	public abstract get name(): string;
+
+	public abstract get startTime(): number;
+	public abstract get endTime(): number | undefined;
+
+	public get last(): ObservableEvent | undefined {
 		return this.events[this.events.length - 1];
 	}
 
-	public get first(): ObservableEvent {
+	public get first(): ObservableEvent | undefined {
 		return this.events[0];
 	}
 

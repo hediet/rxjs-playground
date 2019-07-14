@@ -34,3 +34,11 @@ export function binarySearch(test: (t: number) => boolean): number {
 		}
 	}
 }
+
+export function sortByNumericKey<T>(
+	keySelector: (item: T) => number
+): (a: T, b: T) => number {
+	return (a, b) => {
+		return keySelector(a) - keySelector(b);
+	};
+}

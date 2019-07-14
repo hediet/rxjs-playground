@@ -1,39 +1,29 @@
 import {
-	ObservableHistoryGroups,
-	ObservableHistoryGroup,
-} from "./Model/ObservableHistoryGroups";
-import {
-	SchedulerLike,
-	Observable,
-	from,
-	of,
-	VirtualTimeScheduler,
-	race,
-	interval,
-	NEVER,
 	MonoTypeOperatorFunction,
+	Observable,
 	OperatorFunction,
-	Subject,
 	PartialObserver,
-	zip,
+	Subject,
+	interval,
 } from "rxjs";
 import {
-	flatMap,
-	delay,
-	map,
+	debounceTime,
 	filter,
-	distinctUntilChanged,
+	groupBy,
+	map,
 	mergeMap,
 	take,
 	tap,
-	last,
+	toArray,
 	scan,
-	debounce,
-	debounceTime,
+	withLatestFrom,
+	takeUntil,
 } from "rxjs/operators";
-import { observable } from "mobx";
-import { TrackingHistoryGroup } from "./Model/Tracking";
 import { MutableObservableHistoryGroup } from "./Model/Mutable";
+import { ObservableGroup, ObservableGroups } from "./Model/ObservableGroups";
+import { TrackingObservableGroup } from "./Model/Tracking";
+import { TypeScriptTrackingObservableGroup } from "./Model/TypeScriptTrackingObservableGroup";
+import { ObservableComputer } from "./Model/types";
 
 function mergeFilter<T>(
 	predicate: (arg: T) => Observable<boolean>
@@ -65,17 +55,13 @@ interface Ringing {
 	t: number;
 }
 
-export const sampleGroups = new ObservableHistoryGroups();
-sampleGroups.groups.push(sampleData(sampleGroups, "data1"));
-//sampleGroups.groups.push(sampleData(sampleGroups, "data2"));
-sampleGroups.groups.push(toggle(sampleGroups));
-//sampleGroups.groups.push(toggle(sampleGroups));
+export const sampleGroups = new ObservableGroups();
+sampleGroups.addGroup(new MutableObservableHistoryGroup());
+sampleGroups.addGroup(new TypeScriptTrackingObservableGroup(sampleGroups));
+//sampleGroups.addGroup(sampleData(sampleGroups, "data2"));
 
-function sampleData(
-	groups: ObservableHistoryGroups,
-	name: string
-): ObservableHistoryGroup {
-	const group = new MutableObservableHistoryGroup(name);
+function sampleData(groups: ObservableGroups, name: string): ObservableGroup {
+	const group = new MutableObservableHistoryGroup();
 	const ringings: Ringing[] = [
 		{ r: true, t: 0 },
 		{ r: false, t: 8 },
@@ -93,26 +79,58 @@ function sampleData(
 	return group;
 }
 
-function zipped(groups: ObservableHistoryGroups): ObservableHistoryGroup {
-	return new TrackingHistoryGroup("zip", (scheduler, track) => {
-		return groups
-			.getResultingObservable("data1", scheduler)
-			.pipe(debounceTime(10, scheduler));
-	});
+function zipped(groups: ObservableGroups): ObservableGroup {
+	return new TrackingObservableGroup(
+		groups,
+		(getObservable, scheduler, track) => {
+			return groups
+				.getResultingObservable("data1", scheduler)
+				.pipe(debounceTime(10, scheduler));
+		}
+	);
 }
 
-function toggle(groups: ObservableHistoryGroups): ObservableHistoryGroup {
-	return new TrackingHistoryGroup("bla", (scheduler, track) => {
-		return groups.getResultingObservable("data1", scheduler).pipe(
-			scan(acc => !acc, false),
-			track(),
-			map(r => ({ r, t: scheduler.now() })),
-			track(),
-			debounceTime(10, scheduler)
-		);
-	});
-}
+const groupByDemo: ObservableComputer = (getObservable, scheduler, track) => {
+	const source = interval(1000, scheduler).pipe(track("source"));
+	//is number even?
+	const isEven = (val: number) => val % 2 === 0;
+	//only allow values that are even
+	const evenSource = source.pipe(
+		filter(isEven),
+		track("evenSource")
+	);
+	//keep a running total of the number of even numbers out
+	const evenNumberCount = evenSource.pipe(
+		scan((acc, _) => acc + 1, 0),
+		track("evenNumberCount")
+	);
+	//do not emit until 5 even numbers have been emitted
+	const fiveEvenNumbers = evenNumberCount.pipe(
+		filter(val => val > 5),
+		track("fiveEvenNumbers")
+	);
 
+	const example = evenSource.pipe(
+		//also give me the current even number count for display
+		withLatestFrom(evenNumberCount),
+		track(),
+		map(([val, count]) => `Even number (${count}) : ${val}`),
+		track(),
+		//when five even numbers have been emitted, complete source observable
+		takeUntil(fiveEvenNumbers)
+	);
+
+	return example;
+
+	/*return getObservable<number>("data1").pipe(
+		groupBy(i => Math.floor(i / 3), n => n, g => getObservable("data2")),
+		mergeMap(g => g.pipe(toArray()))
+	);*/
+};
+
+//sampleGroups.addGroup(new TrackingObservableGroup(sampleGroups, groupByDemo));
+
+/*
 function processedRingings(
 	groups: ObservableHistoryGroups
 ): TrackingHistoryGroup {
@@ -153,3 +171,4 @@ function processedRingings(
 		);
 	});
 }
+*/

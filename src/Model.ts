@@ -1,7 +1,8 @@
 import { sampleGroups } from "./example";
+import { PlaygroundViewModel } from "./Components/ViewModels";
 
 export class Model {
-	public readonly groups = sampleGroups;
+	public readonly playground = new PlaygroundViewModel(sampleGroups);
 
 	constructor() {}
 }

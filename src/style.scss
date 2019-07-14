@@ -1,3 +1,7 @@
+@import "~normalize.css";
+@import "~@blueprintjs/core/lib/css/blueprint.css";
+@import "~@blueprintjs/icons/lib/css/blueprint-icons.css";
+
 body {
 	font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
@@ -18,14 +22,30 @@ body,
 	display: flex;
 	flex-direction: column;
 	height: 100%;
+}
+
+.playground {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
 
 	.visualizer {
 		position: relative;
-		overflow: auto;
-		border: 1px black solid;
 		flex: 1;
+		display: flex;
+		flex-direction: row;
 
-		width: 1000px;
+		.view {
+			flex: 1;
+			overflow: auto;
+			border: 1px black solid;
+			height: 100%;
+		}
+
+		.details {
+			flex: 1;
+			margin-left: 10px;
+		}
 	}
 }
 
@@ -36,13 +56,22 @@ body,
 	svg {
 		width: 100%;
 		box-sizing: border-box;
+		display: block;
 
-		circle,
-		text {
-			transition: 0.4s all;
+		circle.event,
+		text.event {
+			transition: 0.4s cy;
 		}
 		.groupBorder {
 			stroke: gray;
+		}
+
+		.title {
+			stroke: blue;
+		}
+
+		.event-temporary {
+			fill: gray;
 		}
 	}
 
@@ -52,9 +81,34 @@ body,
 			transition: none;
 		}
 	}
+
+	circle.large,
+	circle.event:hover {
+		stroke-width: 5;
+	}
 }
 
 .groupBackground {
-	fill: lighten(gray, 42%);
+	fill: lighten(gray, 44%);
 	stroke: none;
+}
+
+.detailsPane {
+	flex: 1;
+	height: 100%;
+
+	display: flex;
+	flex-direction: column;
+
+	.config {
+		flex: 1;
+	}
+}
+
+.configComponent {
+	height: 100%;
+}
+
+.editor {
+	height: 100%;
 }

@@ -19,6 +19,7 @@ export interface SvgAttributes<T> extends React.DOMAttributes<T> {
 	stroke?: string;
 	className?: string;
 	style?: Properties;
+	pointerEvents?: "none" | "auto" | "initial";
 }
 
 export function SvgText(
@@ -41,14 +42,19 @@ export function SvgText(
 }
 
 export function SvgCircle(
-	props: { center: Point; radius: number } & SvgAttributes<SVGCircleElement>
+	props: {
+		center: Point;
+		radius: number;
+		childRef?: React.Ref<SVGCircleElement>;
+	} & SvgAttributes<SVGCircleElement>
 ) {
 	return (
 		<circle
 			cx={props.center.x}
 			cy={props.center.y}
 			r={props.radius}
-			{...omit(props, ["center", "radius"])}
+			ref={props.childRef}
+			{...omit(props, ["center", "radius", "childRef"])}
 		/>
 	);
 }

@@ -1,63 +1,24 @@
 import { observer } from "mobx-react";
 import { Point } from "../std/Point";
 import { ObservableMap, observable, autorun, computed, toJS } from "mobx";
-import { SvgRect, SvgLine } from "../std/SvgElements";
-import {
-	ObservableHistoryGroup,
-	ObservableHistory,
-} from "../Model/ObservableHistoryGroups";
+import { SvgRect, SvgLine, SvgText } from "../std/SvgElements";
+import { ObservableGroup, ObservableHistory } from "../Model/ObservableGroups";
 import { PositionTransformation } from "../std/DragBehavior";
 import { SvgContext, Scaling, groupDragBehavior } from "./utils";
 import React = require("react");
-import { ObservableHistoryComponent } from "./ObservableHistoryComponent";
+import { ObservableView } from "./ObservableView";
 import { MutableObservableHistoryGroup } from "../Model/Mutable";
-
-export class GroupWrapper {
-	@observable public orderKey: number = 0;
-	@observable public dragX: number | undefined = undefined;
-	@observable public observables: ObservableWrapper[] = [];
-
-	@computed get width(): number {
-		return this.widthSum(this.observables.length);
-	}
-
-	widthSum(count: number): number {
-		return Math.max(
-			10,
-			this.observables.slice(0, count).reduce((s, o) => s + o.width, 0)
-		);
-	}
-
-	constructor(public readonly group: ObservableHistoryGroup) {
-		autorun(() => {
-			this.observables = group.observables.map(
-				o => new ObservableWrapper(o)
-			);
-		});
-	}
-}
-
-export class ObservableWrapper {
-	@computed get width() {
-		let max = 20;
-		for (const width of this.textWidths.values()) {
-			max = Math.max(max, width + 40);
-		}
-		return max;
-	}
-
-	public textWidths = new ObservableMap<number, number>();
-
-	constructor(public readonly observable: ObservableHistory) {}
-}
+import { ObservableGroupViewModel, PlaygroundViewModel } from "./ViewModels";
+import { ContextMenu, Menu, MenuItem } from "@blueprintjs/core";
 
 @observer
-export class ObservableHistoryGroupComponent extends React.Component<{
-	group: GroupWrapper;
+export class ObservableGroupView extends React.Component<{
+	group: ObservableGroupViewModel;
 	x: number;
 	height: number;
 	svgContext: SvgContext;
 	scaling: Scaling;
+	playground: PlaygroundViewModel;
 }> {
 	constructor(props: any) {
 		super(props);
@@ -90,26 +51,11 @@ export class ObservableHistoryGroupComponent extends React.Component<{
 					position={new Point(0, 0)}
 					size={new Point(this.props.group.width, height)}
 					stroke={"gray"}
-					onDoubleClick={e => {
-						e.preventDefault();
-						e.stopPropagation();
-
-						if (
-							group.group instanceof MutableObservableHistoryGroup
-						) {
-							const p = svgContext.mouseToSvgCoordinates(
-								new Point(e.clientX, e.clientY)
-							);
-							const t = scaling.getTime(p.y - 50);
-							group.group.history.addEvent(
-								t,
-								group.group.history.events.length + 1
-							);
-						}
-					}}
 					onMouseDown={e => {
 						e.preventDefault();
 						e.stopPropagation();
+						this.props.playground.selectedGroup = this.props.group.group;
+
 						const op = groupDragBehavior
 							.start(
 								group,
@@ -131,12 +77,26 @@ export class ObservableHistoryGroupComponent extends React.Component<{
 						});
 					}}
 				/>
-				{group.observables.map((observable, idx) => (
-					<ObservableHistoryComponent
-						key={idx}
-						start={
-							new Point(10 + this.props.group.widthSum(idx), 50)
+				<SvgText
+					className="title"
+					style={{ textAnchor: "start" }}
+					position={
+						new Point(
+							group.widthSum(group.observables.length - 1),
+							15
+						)
+					}
+					children={group.group.name}
+					childRef={txt => {
+						if (txt) {
+							group.titleWidth = txt.getBBox().width + 20;
 						}
+					}}
+				/>
+				{group.observables.map((observable, idx) => (
+					<ObservableView
+						key={idx}
+						start={new Point(10 + group.widthSum(idx), 30)}
 						scaling={scaling}
 						observable={observable}
 						svgContext={svgContext}

@@ -7,9 +7,9 @@ import { Scaling } from "./utils";
 export function TimeAxis(props: {
 	start: Point;
 	scaling: Scaling;
-	lastTime: number;
+	height: number;
 }): React.ReactElement {
-	const { start, scaling, lastTime } = props;
+	const { start, scaling, height } = props;
 
 	const factor = scaling.getY(1) - scaling.getY(0);
 
@@ -31,10 +31,12 @@ export function TimeAxis(props: {
 		<g>
 			<SvgLine
 				start={start}
-				end={start.add({ y: scaling.getY(lastTime) + 20 })}
+				end={start.add({ y: height })}
 				stroke="black"
 			/>
-			{new Array(Math.ceil(lastTime / axisDT + 1))
+			{new Array(
+				Math.ceil(scaling.getTime(height - start.x - 10) / axisDT)
+			)
 				.fill(0)
 				.map((i, idx) => {
 					const t = idx * axisDT;

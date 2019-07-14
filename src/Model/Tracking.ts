@@ -3,16 +3,21 @@ import {
 	VirtualTimeScheduler,
 	SchedulerLike,
 	Observable,
+	defer,
 } from "rxjs";
 import {
-	ObservableHistoryGroup,
+	ObservableGroup,
 	ObservableHistory,
 	ObservableEvent,
-} from "./ObservableHistoryGroups";
+	ObservableGroups,
+} from "./ObservableGroups";
 import { computed, observable } from "mobx";
 import { tap } from "rxjs/operators";
+import { ObservableComputer } from "./types";
+import { sortByNumericKey } from "../std/utils";
 
-export type TrackFn = <T>() => MonoTypeOperatorFunction<T>;
+export type TrackFn = <T>(name?: string) => MonoTypeOperatorFunction<T>;
+export type GetObservableFn = <T>(name: string) => Observable<T>;
 
 let id = 0;
 
@@ -22,44 +27,126 @@ export class TrackingEvent implements ObservableEvent {
 	constructor(public readonly time: number, public readonly data: unknown) {}
 }
 
-export class TrackingHistoryGroup extends ObservableHistoryGroup {
+export abstract class TrackingObservableGroupBase extends ObservableGroup {
 	@computed
 	public get observables(): ObservableHistory[] {
 		const scheduler = new VirtualTimeScheduler();
 		const observables = new Array<ObservableHistory>();
 
-		const trackFn: TrackFn = () => {
-			const history = new TrackingObservableHistory();
-			observables.push(history);
-			return tap(n => {
-				history.trackedEvents.push(
-					new TrackingEvent(scheduler.now(), n)
-				);
-			});
-		};
-		const obs = this.observableCtor(scheduler, trackFn).pipe(trackFn());
-		obs.subscribe();
+		const trackFn = (name?: string | (() => string)) => {
+			const n =
+				typeof name === "string"
+					? () => name
+					: typeof name === "function"
+					? name
+					: () => "";
 
-		scheduler.flush();
+			return <T>(source: Observable<T>) => {
+				return defer(() => {
+					const history = new TrackingObservableHistory(n);
+
+					observables.unshift(history);
+					history.startTime = scheduler.now();
+					return source.pipe(
+						tap({
+							next: n => {
+								history.trackedEvents.push(
+									new TrackingEvent(scheduler.now(), n)
+								);
+							},
+							complete: () => {
+								history.endTime = scheduler.now();
+							},
+						})
+					);
+				});
+			};
+		};
+
+		const getObservable: GetObservableFn = <T>(name: string) => {
+			let last: ObservableGroup | undefined = undefined;
+
+			const groups = [...this.groups.groups]
+				.map((g, idx) => ({ g, idx }))
+				.sort(sortByNumericKey(g => g.g.getPositionSortKey(g.idx)));
+
+			for (const g of groups) {
+				if (g.g === this) {
+					break;
+				}
+				if (g.g.name === name) {
+					last = g.g;
+				}
+			}
+			if (!last) {
+				throw new Error("no last");
+			}
+			const h = last.resultingObservableHistory;
+			if (!h) {
+				throw new Error("no resulting history");
+			}
+			return h.asObservable<T>(scheduler);
+		};
+
+		try {
+			const obs = this.getObservable(
+				getObservable,
+				scheduler,
+				trackFn
+			).pipe(trackFn(() => this.name));
+			obs.subscribe();
+
+			scheduler.flush();
+		} catch (e) {
+			return [];
+		}
 
 		return observables;
 	}
 
-	constructor(
-		name: string,
-		public readonly observableCtor: (
-			scheduler: SchedulerLike,
-			track: TrackFn
-		) => Observable<unknown>
+	protected abstract getObservable(
+		getObservable: GetObservableFn,
+		scheduler: SchedulerLike,
+		track: TrackFn
+	): Observable<unknown>;
+
+	constructor(private readonly groups: ObservableGroups) {
+		super();
+	}
+}
+
+export class TrackingObservableGroup extends TrackingObservableGroupBase {
+	@observable public observableCtor: ObservableComputer;
+
+	protected getObservable(
+		getObservable: GetObservableFn,
+		scheduler: SchedulerLike,
+		track: TrackFn
 	) {
-		super(name);
+		return this.observableCtor(getObservable, scheduler, track);
+	}
+
+	constructor(groups: ObservableGroups, observableCtor: ObservableComputer) {
+		super(groups);
+		this.observableCtor = observableCtor;
 	}
 }
 
 export class TrackingObservableHistory extends ObservableHistory {
+	constructor(private readonly nameFn: () => string) {
+		super();
+	}
+
+	public get name() {
+		return this.nameFn();
+	}
+
 	public get events(): ReadonlyArray<ObservableEvent> {
 		return this.trackedEvents;
 	}
+
+	@observable public startTime: number = 0;
+	@observable public endTime: number | undefined = undefined;
 
 	@observable public trackedEvents = new Array<ObservableEvent>();
 }

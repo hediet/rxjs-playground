@@ -1,6 +1,7 @@
 import * as webpack from "webpack";
 import path = require("path");
 import HtmlWebpackPlugin = require("html-webpack-plugin");
+import MonacoWebpackPlugin = require("monaco-editor-webpack-plugin");
 
 const r = (file: string) => path.resolve(__dirname, file);
 
@@ -30,5 +31,5 @@ module.exports = {
 			},
 		],
 	},
-	plugins: [new HtmlWebpackPlugin()],
+	plugins: [new HtmlWebpackPlugin(), new MonacoWebpackPlugin()],
 } as webpack.Configuration;
