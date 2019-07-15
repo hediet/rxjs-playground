@@ -9,6 +9,31 @@ import { sortByNumericKey } from "../std/utils";
 export class MutableObservableHistoryGroup extends ObservableGroup {
 	public readonly history = new MutableObservableHistory(this);
 	public readonly observables = [this.history];
+
+	public getAsJson(): string {
+		const data = this.history.events.map(e => ({
+			id: e.id,
+			time: e.time,
+			data: e.data,
+		}));
+
+		let result = `[\n`;
+		let i = 0;
+		for (const event of data) {
+			i++;
+			result += `    ${JSON.stringify(event)}`;
+			if (i < data.length) {
+				result += ",";
+			}
+			result += "\n";
+		}
+		result += `]`;
+		return result;
+	}
+
+	public setJson(json: string) {
+		//JSON.parse(json);
+	}
 }
 
 export class MutableObservableHistory<T> extends ObservableHistory {
@@ -28,6 +53,11 @@ export class MutableObservableHistory<T> extends ObservableHistory {
 	@computed
 	public get events(): ReadonlyArray<ObservableEvent> {
 		return this._events.slice().sort(sortByNumericKey(e => e.time));
+	}
+
+	@action
+	public clear(): void {
+		this._events.length = 0;
 	}
 
 	@action

@@ -90,43 +90,45 @@ function zipped(groups: ObservableGroups): ObservableGroup {
 	);
 }
 
-const groupByDemo: ObservableComputer = (getObservable, scheduler, track) => {
-	const source = interval(1000, scheduler).pipe(track("source"));
+/*
+
+import * as rx from "rxjs";
+import * as op from "rxjs/operators";
+import { visualize } from "@hediet/rxjs-visualizer";
+
+visualize((getObservable, scheduler, track) => {
+	const source = rx.interval(1000, scheduler).pipe(track("source"));
 	//is number even?
 	const isEven = (val: number) => val % 2 === 0;
 	//only allow values that are even
 	const evenSource = source.pipe(
-		filter(isEven),
+		op.filter(isEven),
 		track("evenSource")
 	);
 	//keep a running total of the number of even numbers out
 	const evenNumberCount = evenSource.pipe(
-		scan((acc, _) => acc + 1, 0),
+		op.scan((acc, _) => acc + 1, 0),
 		track("evenNumberCount")
 	);
 	//do not emit until 5 even numbers have been emitted
 	const fiveEvenNumbers = evenNumberCount.pipe(
-		filter(val => val > 5),
+		op.filter(val => val > 5),
 		track("fiveEvenNumbers")
 	);
 
 	const example = evenSource.pipe(
 		//also give me the current even number count for display
-		withLatestFrom(evenNumberCount),
+		op.withLatestFrom(evenNumberCount),
 		track(),
-		map(([val, count]) => `Even number (${count}) : ${val}`),
+		op.map(([val, count]) => `Even number (${count}) : ${val}`),
 		track(),
 		//when five even numbers have been emitted, complete source observable
-		takeUntil(fiveEvenNumbers)
+		op.takeUntil(fiveEvenNumbers)
 	);
 
 	return example;
-
-	/*return getObservable<number>("data1").pipe(
-		groupBy(i => Math.floor(i / 3), n => n, g => getObservable("data2")),
-		mergeMap(g => g.pipe(toArray()))
-	);*/
-};
+});
+*/
 
 //sampleGroups.addGroup(new TrackingObservableGroup(sampleGroups, groupByDemo));
 

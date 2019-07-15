@@ -2,9 +2,9 @@ import { observer } from "mobx-react";
 import { Point } from "../std/Point";
 import { SvgText, SvgLine, SvgCircle, SvgRect } from "../std/SvgElements";
 import { PositionTransformation } from "../std/DragBehavior";
-import { SvgContext, Scaling, eventDragBehavior } from "./utils";
+import { SvgContext, Scaling } from "./utils";
 import React = require("react");
-import { ObservableViewModel } from "./ViewModels";
+import { ObservableViewModel, PlaygroundViewModel } from "./ViewModels";
 import {
 	Popover,
 	ContextMenuTarget,
@@ -47,14 +47,42 @@ export class ObservableView extends React.Component<{
 	observable: ObservableViewModel;
 	scaling: Scaling;
 	start: Point;
-
+	playground: PlaygroundViewModel;
 	svgContext: SvgContext;
 }> {
 	@observable private selectedEventId: number = -1;
 
 	@observable temporaryEventT: number | undefined = undefined;
 
+	handleMouseDownOnTimedObj(
+		e: React.MouseEvent<SVGCircleElement, MouseEvent>,
+		data: unknown,
+		setTime: (time: number) => void
+	): void {
+		e.preventDefault();
+		e.stopPropagation();
+		const zero = this.props.start;
+		const op = this.props.playground.timedObjDragBehavior
+			.start(
+				data,
+				new PositionTransformation(p =>
+					this.props.svgContext.mouseToSvgCoordinates(p)
+				)
+					.translate(zero.mul(-1))
+					.then(p => new Point(0, this.props.scaling.getTime(p.y)))
+			)
+			.endOnMouseUp();
+
+		op.onDrag.sub(data => {
+			setTime(data.position.y);
+		});
+
+		op.onEnd.sub(data => {});
+	}
+
 	render() {
+		const playground = this.props.playground;
+
 		const zero = this.props.start;
 		const o = this.props.observable.observable;
 		const s = this.props.scaling;
@@ -157,7 +185,9 @@ export class ObservableView extends React.Component<{
 							<SvgCircle
 								className={classNames(
 									"event",
-									(eventDragBehavior.isDataEqualTo(evt.id) ||
+									(playground.timedObjDragBehavior.isDataEqualTo(
+										evt.id
+									) ||
 										this.selectedEventId === evt.id) &&
 										"large"
 								)}
@@ -187,34 +217,11 @@ export class ObservableView extends React.Component<{
 								radius={4}
 								stroke="black"
 								onMouseDown={e => {
-									e.preventDefault();
-									e.stopPropagation();
-									const op = eventDragBehavior
-										.start(
-											evt.id,
-											new PositionTransformation(p =>
-												this.props.svgContext.mouseToSvgCoordinates(
-													p
-												)
-											)
-												.translate(zero.mul(-1))
-												.then(
-													p =>
-														new Point(
-															0,
-															this.props.scaling.getTime(
-																p.y
-															)
-														)
-												)
-										)
-										.endOnMouseUp();
-
-									op.onDrag.sub(data => {
-										evt.time = data.position.y;
-									});
-
-									op.onEnd.sub(data => {});
+									this.handleMouseDownOnTimedObj(
+										e,
+										evt.id,
+										t => (evt.time = t)
+									);
 								}}
 							/>
 							<SvgText

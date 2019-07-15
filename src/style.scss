@@ -66,6 +66,13 @@ body,
 			stroke: gray;
 		}
 
+		.selectedGroup {
+			.groupBorder {
+				stroke: blue;
+				stroke-width: 2;
+			}
+		}
+
 		.title {
 			stroke: blue;
 		}
@@ -73,12 +80,12 @@ body,
 		.event-temporary {
 			fill: gray;
 		}
-	}
 
-	.draggingEvent {
-		circle,
-		text {
-			transition: none;
+		&.draggingEvent {
+			circle,
+			text {
+				transition: none;
+			}
 		}
 	}
 

@@ -28,7 +28,10 @@ visualize((getObservable, scheduler, track) => {
 	@action
 	public setTypescriptSrc(value: string) {
 		this._typescriptSrc = value;
+	}
 
+	@computed
+	get transpiledJs(): string | { error: string } {
 		const src = this.typescriptSrc;
 		let result = ts.transpileModule(src, {
 			compilerOptions: {
@@ -36,60 +39,68 @@ visualize((getObservable, scheduler, track) => {
 				noImplicitUseStrict: true,
 			},
 		});
-
-		this.transpiledJs = result.outputText;
+		if (result.diagnostics) {
+			if (result.diagnostics.length > 0) {
+				// This only includes syntactic diagnostics.
+				return { error: "Syntax Error" };
+			}
+		}
+		return result.outputText;
 	}
 
-	@observable transpiledJs: string | undefined = undefined;
-
-	@computed private get observableCtor(): ObservableComputer | undefined {
+	@computed private get observableCtor():
+		| ObservableComputer
+		| { error: string } {
 		const transpiledJs = this.transpiledJs;
-		if (!transpiledJs) {
-			return undefined;
+		if (typeof transpiledJs === "object") {
+			return transpiledJs;
 		}
 
-		return this.evalObservable(transpiledJs);
-	}
-
-	private evalObservable(js: string): ObservableComputer | undefined {
-		let result: ObservableComputer | undefined = undefined;
-		try {
-			const mods: Record<string, unknown> = {
-				rxjs: require("rxjs"),
-				"rxjs/operators": require("rxjs/operators"),
-				"@hediet/rxjs-visualizer": {
-					visualize(c: ObservableComputer) {
-						result = c;
-					},
-				},
-			};
-
-			(function() {
-				eval("var require = this.require; var exports = {}; " + js);
-			}.apply({
-				require(module: string): unknown {
-					return mods[module];
-				},
-			}));
-		} catch (e) {
-			console.error(e);
-		}
-		return result;
+		return evalObservable(transpiledJs);
 	}
 
 	protected getObservable(
 		getObservable: GetObservableFn,
 		scheduler: SchedulerLike,
 		track: TrackFn
-	): Observable<unknown> {
-		if (!this.observableCtor) {
-			throw new Error();
+	): Observable<unknown> | { error: string } {
+		const ctor = this.observableCtor;
+		if (typeof ctor === "object") {
+			return ctor;
 		}
+		return ctor(getObservable, scheduler, track);
+	}
+}
 
-		return this.observableCtor(getObservable, scheduler, track);
+function evalObservable(js: string): ObservableComputer | { error: string } {
+	let result: ObservableComputer | undefined = undefined;
+	try {
+		const mods: Record<string, unknown> = {
+			rxjs: require("rxjs"),
+			"rxjs/operators": require("rxjs/operators"),
+			"@hediet/rxjs-visualizer": {
+				visualize(c: ObservableComputer) {
+					result = c;
+				},
+			},
+		};
+
+		(function() {
+			eval("var require = this.require; var exports = {}; " + js);
+		}.apply({
+			require(module: string): unknown {
+				return mods[module];
+			},
+		}));
+	} catch (e) {
+		return { error: e.toString() };
 	}
 
-	constructor(groups: ObservableGroups) {
-		super(groups);
+	if (!result) {
+		return {
+			error: "No observable exported.",
+		};
 	}
+
+	return result;
 }

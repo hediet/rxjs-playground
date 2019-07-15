@@ -11,12 +11,7 @@ import {
 import { ObservableGroups, ObservableGroup } from "../Model/ObservableGroups";
 import { TimeAxis } from "./TimeAxis";
 import React = require("react");
-import {
-	SvgContext,
-	groupDragBehavior,
-	Scaling,
-	eventDragBehavior,
-} from "./utils";
+import { SvgContext, Scaling } from "./utils";
 import { ObservableGroupView } from "./ObservableGroupView";
 import { Subject } from "rxjs";
 import { debounce, debounceTime } from "rxjs/operators";
@@ -46,18 +41,21 @@ export class ObservableGroupsView extends React.Component<{
 		);
 
 		autorun(() => {
-			if (groupDragBehavior.activeOperation) {
-				groupDragBehavior.activeOperation.onEnd.sub(() => {
-					runInAction(() => {
-						if (this.lastGroupOrderWhileDragging) {
-							let i = -10000000;
-							for (const g of this.lastGroupOrderWhileDragging) {
-								g.group.position = i;
-								i++;
+			if (this.props.playground.groupDragBehavior.activeOperation) {
+				this.props.playground.groupDragBehavior.activeOperation.onEnd.sub(
+					() => {
+						runInAction(() => {
+							if (this.lastGroupOrderWhileDragging) {
+								let i = -10000000;
+								for (const g of this
+									.lastGroupOrderWhileDragging) {
+									g.group.position = i;
+									i++;
+								}
 							}
-						}
-					});
-				});
+						});
+					}
+				);
 			}
 		});
 	}
@@ -101,7 +99,9 @@ export class ObservableGroupsView extends React.Component<{
 		};
 
 		const result = this.groups
-			.filter(g => !groupDragBehavior.isDataEqualTo(g))
+			.filter(
+				g => !this.props.playground.groupDragBehavior.isDataEqualTo(g)
+			)
 			.map((group, idx) => ({ group, x: 0, idx }));
 
 		result.sort(
@@ -110,7 +110,7 @@ export class ObservableGroupsView extends React.Component<{
 
 		repairX(result);
 
-		const op = groupDragBehavior.activeOperation;
+		const op = this.props.playground.groupDragBehavior.activeOperation;
 		if (op) {
 			result.push({
 				group: op.data,
@@ -133,8 +133,10 @@ export class ObservableGroupsView extends React.Component<{
 
 		result.sort(
 			sortByNumericKey(g =>
-				groupDragBehavior.activeOrPreviousOperation &&
-				groupDragBehavior.activeOrPreviousOperation.data === g.group
+				this.props.playground.groupDragBehavior
+					.activeOrPreviousOperation &&
+				this.props.playground.groupDragBehavior
+					.activeOrPreviousOperation.data === g.group
 					? 100
 					: g.group.group.id
 			)
@@ -211,8 +213,12 @@ export class ObservableGroupsView extends React.Component<{
 						}
 					}
 					className={classNames(
-						eventDragBehavior.isActive && "draggingEvent"
+						this.props.playground.timedObjDragBehavior.isActive &&
+							"draggingEvent"
 					)}
+					onMouseDown={() => {
+						this.props.playground.selectedGroup = undefined;
+					}}
 				>
 					<TimeAxis
 						start={pointsStart.sub({ x: 30 })}

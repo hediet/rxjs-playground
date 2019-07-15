@@ -5,11 +5,20 @@ import {
 	ObservableHistory,
 	ObservableGroups,
 } from "../Model/ObservableGroups";
+import { DragBehavior } from "../std/DragBehavior";
 
 export class PlaygroundViewModel {
 	constructor(public readonly groups: ObservableGroups) {}
 
+	public readonly groupDragBehavior = new DragBehavior<
+		ObservableGroupViewModel
+	>();
+
+	public readonly timedObjDragBehavior = new DragBehavior();
+
 	@observable selectedGroup: ObservableGroup | undefined = undefined;
+
+	@observable recording: boolean = false;
 }
 
 export class ObservableGroupViewModel {

@@ -1,6 +1,13 @@
 import { observable } from "mobx";
-import { SchedulerLike, Observable, from, of, NEVER } from "rxjs";
-import { flatMap, delay, map, concat } from "rxjs/operators";
+import { SchedulerLike, Observable, from, of, NEVER, merge, empty } from "rxjs";
+import {
+	flatMap,
+	delay,
+	map,
+	concat,
+	filter,
+	ignoreElements,
+} from "rxjs/operators";
 
 export class ObservableGroups {
 	@observable private readonly _groups = new Set<ObservableGroup>();
@@ -106,11 +113,17 @@ export abstract class ObservableHistory {
 	public abstract get events(): ReadonlyArray<ObservableEvent>;
 
 	public asObservable<T>(scheduler: SchedulerLike): Observable<T> {
-		return from(this.events).pipe(
-			flatMap(v => of(v).pipe(delay(v.time, scheduler))),
-			map(e => e.data as T),
-
-			concat(NEVER)
+		return merge(
+			from(this.events).pipe(
+				flatMap(v => of(v).pipe(delay(v.time, scheduler))),
+				map(e => e.data as T)
+			),
+			this.endTime
+				? from([0]).pipe(
+						delay(this.endTime, scheduler),
+						ignoreElements()
+				  )
+				: NEVER
 		);
 	}
 

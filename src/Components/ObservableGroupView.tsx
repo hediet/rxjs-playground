@@ -4,12 +4,13 @@ import { ObservableMap, observable, autorun, computed, toJS } from "mobx";
 import { SvgRect, SvgLine, SvgText } from "../std/SvgElements";
 import { ObservableGroup, ObservableHistory } from "../Model/ObservableGroups";
 import { PositionTransformation } from "../std/DragBehavior";
-import { SvgContext, Scaling, groupDragBehavior } from "./utils";
+import { SvgContext, Scaling } from "./utils";
 import React = require("react");
 import { ObservableView } from "./ObservableView";
 import { MutableObservableHistoryGroup } from "../Model/Mutable";
 import { ObservableGroupViewModel, PlaygroundViewModel } from "./ViewModels";
 import { ContextMenu, Menu, MenuItem } from "@blueprintjs/core";
+import classnames = require("classnames");
 
 @observer
 export class ObservableGroupView extends React.Component<{
@@ -25,16 +26,33 @@ export class ObservableGroupView extends React.Component<{
 	}
 
 	render(): React.ReactElement {
-		const { group, x, height, svgContext, scaling } = this.props;
+		const {
+			group,
+			x,
+			height,
+			svgContext,
+			scaling,
+			playground,
+		} = this.props;
 		const p = new Point(group.dragX !== undefined ? group.dragX : x, 0);
 		return (
 			<g
+				className={classnames(
+					playground.selectedGroup === group.group && "selectedGroup"
+				)}
 				transform={`translate(${p.x} ${p.y})`}
 				style={
-					groupDragBehavior.testActiveData(d => d === group)
+					playground.groupDragBehavior.testActiveData(
+						d => d === group
+					)
 						? {}
 						: { transition: "0.4s all" }
 				}
+				onMouseDown={e => {
+					e.preventDefault();
+					e.stopPropagation();
+					playground.selectedGroup = this.props.group.group;
+				}}
 			>
 				<SvgLine
 					className="groupBorder"
@@ -54,9 +72,9 @@ export class ObservableGroupView extends React.Component<{
 					onMouseDown={e => {
 						e.preventDefault();
 						e.stopPropagation();
-						this.props.playground.selectedGroup = this.props.group.group;
+						playground.selectedGroup = this.props.group.group;
 
-						const op = groupDragBehavior
+						const op = playground.groupDragBehavior
 							.start(
 								group,
 								new PositionTransformation(p =>
@@ -100,6 +118,7 @@ export class ObservableGroupView extends React.Component<{
 						scaling={scaling}
 						observable={observable}
 						svgContext={svgContext}
+						playground={playground}
 					/>
 				))}
 			</g>

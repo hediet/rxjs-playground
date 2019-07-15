@@ -10,7 +10,3 @@ export interface Scaling {
 	getY(time: number): number;
 	getTime(y: number): number;
 }
-
-export const groupDragBehavior = new DragBehavior<ObservableGroupViewModel>();
-
-export const eventDragBehavior = new DragBehavior();

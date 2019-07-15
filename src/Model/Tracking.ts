@@ -15,6 +15,7 @@ import { computed, observable } from "mobx";
 import { tap } from "rxjs/operators";
 import { ObservableComputer } from "./types";
 import { sortByNumericKey } from "../std/utils";
+import { string } from "prop-types";
 
 export type TrackFn = <T>(name?: string) => MonoTypeOperatorFunction<T>;
 export type GetObservableFn = <T>(name: string) => Observable<T>;
@@ -28,6 +29,25 @@ export class TrackingEvent implements ObservableEvent {
 }
 
 export abstract class TrackingObservableGroupBase extends ObservableGroup {
+	@computed
+	public get visibleObservables(): Map<string, ObservableHistory> {
+		const groups = [...this.groups.groups]
+			.map((g, idx) => ({ g, idx }))
+			.sort(sortByNumericKey(g => g.g.getPositionSortKey(g.idx)));
+
+		const observables = new Map<string, ObservableHistory>();
+
+		for (const g of groups) {
+			if (g.g === this) {
+				break;
+			}
+			if (g.g.resultingObservableHistory) {
+				observables.set(g.g.name, g.g.resultingObservableHistory);
+			}
+		}
+		return observables;
+	}
+
 	@computed
 	public get observables(): ObservableHistory[] {
 		const scheduler = new VirtualTimeScheduler();
@@ -64,40 +84,30 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 		};
 
 		const getObservable: GetObservableFn = <T>(name: string) => {
-			let last: ObservableGroup | undefined = undefined;
-
-			const groups = [...this.groups.groups]
-				.map((g, idx) => ({ g, idx }))
-				.sort(sortByNumericKey(g => g.g.getPositionSortKey(g.idx)));
-
-			for (const g of groups) {
-				if (g.g === this) {
-					break;
-				}
-				if (g.g.name === name) {
-					last = g.g;
-				}
+			const o = this.visibleObservables.get(name);
+			if (!o) {
+				throw new Error(
+					`There is no visible observable with name "${name}"!`
+				);
 			}
-			if (!last) {
-				throw new Error("no last");
-			}
-			const h = last.resultingObservableHistory;
-			if (!h) {
-				throw new Error("no resulting history");
-			}
-			return h.asObservable<T>(scheduler);
+			return o.asObservable<T>(scheduler);
 		};
 
 		try {
-			const obs = this.getObservable(
+			const obsOrError = this.getObservable(
 				getObservable,
 				scheduler,
 				trackFn
-			).pipe(trackFn(() => this.name));
-			obs.subscribe();
-
-			scheduler.flush();
+			);
+			if (typeof obsOrError === "object" && "error" in obsOrError) {
+				console.error(obsOrError.error);
+			} else {
+				obsOrError.pipe(trackFn(() => this.name)).subscribe();
+				scheduler.flush();
+				console.log(observables, obsOrError);
+			}
 		} catch (e) {
+			console.error(e);
 			return [];
 		}
 
@@ -108,7 +118,7 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 		getObservable: GetObservableFn,
 		scheduler: SchedulerLike,
 		track: TrackFn
-	): Observable<unknown>;
+	): Observable<unknown> | { error: string };
 
 	constructor(private readonly groups: ObservableGroups) {
 		super();
