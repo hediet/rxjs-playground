@@ -55,9 +55,8 @@ interface Ringing {
 	t: number;
 }
 
-export const sampleGroups = new ObservableGroups();
-sampleGroups.addGroup(new MutableObservableHistoryGroup());
-sampleGroups.addGroup(new TypeScriptTrackingObservableGroup(sampleGroups));
+//export const sampleGroups = new ObservableGroups();
+
 //sampleGroups.addGroup(sampleData(sampleGroups, "data2"));
 
 function sampleData(groups: ObservableGroups, name: string): ObservableGroup {

@@ -6,6 +6,7 @@ import {
 	ObservableGroups,
 } from "../Model/ObservableGroups";
 import { DragBehavior } from "../std/DragBehavior";
+import { TypeScriptService } from "../Model/TypeScriptService";
 
 export class PlaygroundViewModel {
 	constructor(public readonly groups: ObservableGroups) {}
@@ -15,6 +16,8 @@ export class PlaygroundViewModel {
 	>();
 
 	public readonly timedObjDragBehavior = new DragBehavior();
+
+	public readonly typeScriptService = new TypeScriptService();
 
 	@observable selectedGroup: ObservableGroup | undefined = undefined;
 

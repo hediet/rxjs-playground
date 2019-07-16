@@ -9,14 +9,15 @@ export class TypeScriptService {
 	}
 
 	private tsUri(id: number) {
-		return monaco.Uri.parse(`file:///main${id}.ts`);
+		return monaco.Uri.parse(`file:///${id}/main.ts`);
 	}
 
-	public createTypeScriptModel(initialValue: string): Model {
+	public createTypeScriptModel(initialValue: string): TsModel {
 		this.modelId++;
 		const uri = this.tsUri(this.modelId);
-		return new Model(
-			monaco.editor.createModel(initialValue, "typescript", uri)
+		return new TsModel(
+			monaco.editor.createModel(initialValue, "typescript", uri),
+			this.modelId
 		);
 	}
 
@@ -45,10 +46,20 @@ export class TypeScriptService {
 			noImplicitUseStrict: true,
 		});
 	}
+}
+
+export class TsModel {
+	constructor(
+		public readonly textModel: monaco.editor.ITextModel,
+		private id: number
+	) {}
+
+	public get uri(): monaco.Uri {
+		return this.textModel.uri;
+	}
 
 	public registerSpecificTypes(groupNames: string[]) {
-		const typesContent = require("!!raw-loader!./../Model/types.ts")
-			.default;
+		const typesContent = require("!!raw-loader!./types.ts").default;
 
 		let names = groupNames.map(n => JSON.stringify(n)).join("|");
 		if (groupNames.length === 0) {
@@ -57,22 +68,16 @@ export class TypeScriptService {
 
 		monaco.languages.typescript.typescriptDefaults.addExtraLib(
 			`
-        ${typesContent}
-        export function visualize(computer: ObservableComputer<${names}>): void;
-        `,
-			"file:///node_modules/@hediet/rxjs-visualizer/index.d.ts"
+${typesContent}
+export function visualize(computer: ObservableComputer<${names}>): void;
+`,
+			`file:///${this.id}/node_modules/@hediet/rxjs-visualizer/index.d.ts`
 		);
 	}
-}
 
-export class TsModel {
-	constructor(public readonly textModel: monaco.editor.ITextModel) {}
-
-	public get uri(): monaco.Uri {
-		return this.textModel.uri;
-	}
-
-	public async compile(): Promise<string> {
+	public async compile(): Promise<
+		{ kind: "successful"; js: string } | { kind: "error" }
+	> {
 		const worker: (
 			v: monaco.Uri
 		) => Promise<
@@ -84,7 +89,12 @@ export class TsModel {
 		);
 		const d2 = await proxy.getSyntacticDiagnostics(this.uri.toString());
 		console.log(semanticDiagnostics, d2);
+		if (semanticDiagnostics.length + d2.length > 0) {
+			return {
+				kind: "error",
+			};
+		}
 		const r = await proxy.getEmitOutput(this.uri.toString());
-		return r.outputFiles[0].text;
+		return { kind: "successful", js: r.outputFiles[0].text };
 	}
 }

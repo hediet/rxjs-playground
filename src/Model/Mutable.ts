@@ -3,14 +3,27 @@ import {
 	ObservableHistory,
 	ObservableEvent,
 } from "./ObservableGroups";
-import { observable, action, computed } from "mobx";
+import { observable, action, computed, autorun, runInAction } from "mobx";
 import { sortByNumericKey } from "../std/utils";
+import * as monaco from "monaco-editor";
+import { Subject } from "rxjs";
+import { debounceTime } from "rxjs/operators";
+import { disposeOnUnmount } from "mobx-react";
 
 export class MutableObservableHistoryGroup extends ObservableGroup {
 	public readonly history = new MutableObservableHistory(this);
 	public readonly observables = [this.history];
 
-	public getAsJson(): string {
+	private mainUri = monaco.Uri.parse(
+		`file:///mutableObservableGroup${this.id}.json`
+	);
+	public readonly model = monaco.editor.createModel(
+		this.getAsJson(),
+		"json",
+		this.mainUri
+	);
+
+	private getAsJson(): string {
 		const data = this.history.events.map(e => ({
 			id: e.id,
 			time: e.time,
@@ -31,8 +44,52 @@ export class MutableObservableHistoryGroup extends ObservableGroup {
 		return result;
 	}
 
-	public setJson(json: string) {
-		//JSON.parse(json);
+	private setJson(json: string) {
+		try {
+			const result = JSON.parse(json) as {
+				id: number;
+				time: number;
+				data: unknown;
+			}[];
+			runInAction("Update history", () => {
+				this.history.clear();
+				for (const item of result) {
+					this.history.addEvent(item.time, item.data, item.id);
+				}
+			});
+		} catch (e) {
+			console.error(e);
+		}
+	}
+
+	private debounceSubject = new Subject<string>();
+
+	constructor() {
+		super();
+
+		let updating = false;
+		autorun(() => {
+			const json = this.getAsJson();
+			if (!updating) {
+				this.debounceSubject.next(json);
+			}
+		});
+
+		this.debounceSubject.pipe(debounceTime(100)).forEach(json => {
+			if (!updating) {
+				updating = true;
+				this.model.setValue(json);
+				updating = false;
+			}
+		});
+
+		this.model.onDidChangeContent(() => {
+			if (!updating) {
+				updating = true;
+				this.setJson(this.model.getValue());
+				updating = false;
+			}
+		});
 	}
 }
 
@@ -45,44 +102,53 @@ export class MutableObservableHistory<T> extends ObservableHistory {
 		return this.parent.name;
 	}
 
-	@observable private _events = new Array<MutableObservableEvent>();
+	@observable private _events = new Map<number, MutableObservableEvent>();
 
 	public readonly startTime: number = 0;
 	@observable public endTime: number | undefined = undefined;
 
 	@computed
 	public get events(): ReadonlyArray<ObservableEvent> {
-		return this._events.slice().sort(sortByNumericKey(e => e.time));
+		return [...this._events.values()].sort(sortByNumericKey(e => e.time));
 	}
 
 	@action
 	public clear(): void {
-		this._events.length = 0;
+		this._events.clear();
 	}
 
 	@action
-	public addEvent(time: number, data: T): MutableObservableEvent {
-		const e = new MutableObservableEvent(time, data);
-		this._events.push(e);
+	public addEvent(
+		time: number,
+		data: T,
+		id?: number
+	): MutableObservableEvent {
+		const e = new MutableObservableEvent(time, data, id);
+		if (this._events.has(e.id)) {
+			throw new Error(`An event with id "${e.id}" already exists!`);
+		}
+		this._events.set(e.id, e);
 		return e;
 	}
 
 	@action
 	public removeEvent(event: ObservableEvent): void {
-		const idx = this._events.indexOf(event);
-		this._events.splice(idx, 1);
+		this._events.delete(event.id);
 	}
 }
 
-let id = 0;
+let globalId = 0;
 
 export class MutableObservableEvent implements ObservableEvent {
 	@observable public time: number;
 	@observable public data: unknown;
-	public readonly id = id++;
+	public readonly id = globalId++;
 
-	constructor(time: number, data: unknown) {
+	constructor(time: number, data: unknown, id?: number) {
 		this.time = time;
 		this.data = data;
+		if (id) {
+			this.id = id;
+		}
 	}
 }

@@ -4,9 +4,15 @@ import { observable, computed, autorun, action } from "mobx";
 import { ObservableComputer, GetObservableFn, TrackFn } from "./types";
 import { ObservableGroups } from "./ObservableGroups";
 import * as ts from "typescript";
+import { TsModel, TypeScriptService } from "./TypeScriptService";
 
 export class TypeScriptTrackingObservableGroup extends TrackingObservableGroupBase {
-	@observable private _typescriptSrc: string = `
+	public readonly model: TsModel;
+
+	constructor(tsService: TypeScriptService, groups: ObservableGroups) {
+		super(groups);
+
+		this.model = tsService.createTypeScriptModel(`
 import * as rx from "rxjs";
 import * as op from "rxjs/operators";
 import { visualize } from "@hediet/rxjs-visualizer";
@@ -19,34 +25,28 @@ visualize((getObservable, scheduler, track) => {
 				rx.interval(v * 10, scheduler)
 			)
 		);
-});`;
+});
+`);
 
-	public get typescriptSrc(): string {
-		return this._typescriptSrc;
-	}
-
-	@action
-	public setTypescriptSrc(value: string) {
-		this._typescriptSrc = value;
-	}
-
-	@computed
-	get transpiledJs(): string | { error: string } {
-		const src = this.typescriptSrc;
-		let result = ts.transpileModule(src, {
-			compilerOptions: {
-				module: ts.ModuleKind.CommonJS,
-				noImplicitUseStrict: true,
-			},
+		autorun(() => {
+			this.model.registerSpecificTypes([
+				...this.visibleObservables.keys(),
+			]);
 		});
-		if (result.diagnostics) {
-			if (result.diagnostics.length > 0) {
-				// This only includes syntactic diagnostics.
-				return { error: "Syntax Error" };
-			}
-		}
-		return result.outputText;
+		this.model.textModel.onDidChangeContent(() => this.compile());
+
+		// don't use monaco to compile for the first time to speed things up
+		this.transpiledJs = ts.transpile(this.model.textModel.getValue());
 	}
+
+	private async compile() {
+		const result = await this.model.compile();
+		if (result.kind === "successful") {
+			this.transpiledJs = result.js;
+		}
+	}
+
+	@observable transpiledJs: string = "";
 
 	@computed private get observableCtor():
 		| ObservableComputer

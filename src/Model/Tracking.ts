@@ -11,7 +11,7 @@ import {
 	ObservableEvent,
 	ObservableGroups,
 } from "./ObservableGroups";
-import { computed, observable } from "mobx";
+import { computed, observable, autorun } from "mobx";
 import { tap } from "rxjs/operators";
 import { ObservableComputer } from "./types";
 import { sortByNumericKey } from "../std/utils";
