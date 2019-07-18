@@ -17,30 +17,9 @@ import { observable } from "mobx";
 import {
 	MutableObservableHistoryGroup,
 	MutableObservableHistory,
+	MutableObservableEvent,
 } from "../Model/Mutable";
-
-function SvgCross({ center }: { center: Point }) {
-	return (
-		<g>
-			<SvgLine
-				start={center.add({ x: -5, y: -5 })}
-				end={center.add({ x: 5, y: 5 })}
-				stroke="black"
-				style={{
-					strokeWidth: "2px",
-				}}
-			/>
-			<SvgLine
-				start={center.add({ x: -5, y: 5 })}
-				end={center.add({ x: 5, y: -5 })}
-				stroke="black"
-				style={{
-					strokeWidth: "2px",
-				}}
-			/>
-		</g>
-	);
-}
+import { ObservableEvent } from "../Model/ObservableGroups";
 
 @observer
 export class ObservableView extends React.Component<{
@@ -53,11 +32,14 @@ export class ObservableView extends React.Component<{
 	@observable private selectedEventId: number = -1;
 
 	@observable temporaryEventT: number | undefined = undefined;
+	@observable contextMenuT: number | undefined = undefined;
+	@observable endSelected = false;
 
 	handleMouseDownOnTimedObj(
-		e: React.MouseEvent<SVGCircleElement, MouseEvent>,
+		e: React.MouseEvent<any, MouseEvent>,
 		data: unknown,
-		setTime: (time: number) => void
+		setTime: (time: number) => void,
+		end?: () => void
 	): void {
 		e.preventDefault();
 		e.stopPropagation();
@@ -77,7 +59,11 @@ export class ObservableView extends React.Component<{
 			setTime(data.position.y);
 		});
 
-		op.onEnd.sub(data => {});
+		op.onEnd.sub(data => {
+			if (end) {
+				end();
+			}
+		});
 	}
 
 	render() {
@@ -91,7 +77,6 @@ export class ObservableView extends React.Component<{
 		const start = zero.add({ y: y1 });
 		const y2 = o.endTime ? s.getY(o.endTime) : 10000;
 
-		const last = this.props.observable.observable.last;
 		const end = zero.add({
 			y: y2,
 		});
@@ -114,7 +99,12 @@ export class ObservableView extends React.Component<{
 								new Point(e.clientX, e.clientY)
 							)
 							.sub(zero);
-						this.temporaryEventT = this.props.scaling.getTime(p.y);
+
+						if (o instanceof MutableObservableHistory) {
+							this.temporaryEventT = this.props.scaling.getTime(
+								p.y
+							);
+						}
 					}}
 					onMouseLeave={() => {
 						this.temporaryEventT = undefined;
@@ -122,128 +112,209 @@ export class ObservableView extends React.Component<{
 					onClick={e => {
 						const t = this.temporaryEventT;
 						if (
-							!(o instanceof MutableObservableHistory) ||
-							t === undefined
+							o instanceof MutableObservableHistory &&
+							t !== undefined
 						) {
-							return;
+							e.preventDefault();
+							o.addEvent(t, o.events.length + 1);
 						}
-
-						e.preventDefault();
-
-						o.addEvent(t, o.events.length + 1);
 					}}
 					onContextMenu={e => {
 						const t = this.temporaryEventT;
 						if (
-							!(o instanceof MutableObservableHistory) ||
-							t === undefined
+							o instanceof MutableObservableHistory &&
+							t !== undefined
 						) {
-							return;
+							e.preventDefault();
+							this.showContextMenu(o, t, e);
 						}
-						e.preventDefault();
-						ContextMenu.show(
-							<Menu>
-								<MenuItem
-									text="Set End"
-									icon="flow-end"
-									onClick={() => (o.endTime = t)}
-								/>
-								<MenuItem
-									text="Add"
-									icon="add"
-									onClick={() =>
-										o.addEvent(t, o.events.length + 1)
-									}
-								/>
-							</Menu>,
-							{ left: e.clientX, top: e.clientY },
-							() => {
-								this.selectedEventId = -1;
-							}
-						);
 					}}
 				/>
-				{this.temporaryEventT && (
+				{(this.temporaryEventT || this.contextMenuT) && (
 					<SvgCircle
 						pointerEvents="none"
 						className="event-temporary"
 						center={zero.add({
-							y: this.props.scaling.getY(this.temporaryEventT),
+							y: this.props.scaling.getY(
+								this.temporaryEventT || this.contextMenuT!
+							),
 						})}
 						radius={4}
 						stroke="black"
 					/>
 				)}
 
-				<SvgCross center={end} />
-				{this.props.observable.observable.events.map((evt, idx) => {
-					const p = zero.add({
-						y: this.props.scaling.getY(evt.time),
-					});
-					return (
-						<g key={evt.id}>
-							<SvgCircle
-								className={classNames(
-									"event",
-									(playground.timedObjDragBehavior.isDataEqualTo(
-										evt.id
-									) ||
-										this.selectedEventId === evt.id) &&
-										"large"
-								)}
-								onContextMenu={e => {
-									e.preventDefault();
-									this.selectedEventId = evt.id;
+				{this.renderCross({ center: end })}
 
-									ContextMenu.show(
-										<Menu>
-											<MenuItem
-												text="Delete"
-												icon="delete"
-												onClick={() =>
-													this.props.observable.observable.removeEvent(
-														evt
-													)
-												}
-											/>
-										</Menu>,
-										{ left: e.clientX, top: e.clientY },
-										() => {
-											this.selectedEventId = -1;
-										}
-									);
-								}}
-								center={p}
-								radius={4}
-								stroke="black"
-								onMouseDown={e => {
-									this.handleMouseDownOnTimedObj(
-										e,
-										evt.id,
-										t => (evt.time = t)
-									);
-								}}
-							/>
-							<SvgText
-								childRef={text => {
-									if (!text) {
-										//this.widths.delete(idx);
-									} else {
-										this.props.observable.textWidths.set(
-											idx,
-											text.getBBox().width
-										);
-									}
-								}}
-								position={p.add(new Point(10, 0))}
-								textAnchor="start"
-								dominantBaseline="middle"
-							>
-								{JSON.stringify(evt.data)}
-							</SvgText>
-						</g>
-					);
+				{this.props.observable.observable.events.map((evt, idx) => {
+					return this.renderEvent(evt, playground, idx);
 				})}
+			</g>
+		);
+	}
+
+	private showContextMenu(
+		o: MutableObservableHistory<any>,
+		t: number,
+		e: React.MouseEvent<SVGRectElement, MouseEvent>
+	) {
+		this.contextMenuT = t;
+		ContextMenu.show(
+			<Menu>
+				<MenuItem
+					text="Set End"
+					icon="flow-end"
+					onClick={() => (o.endTime = t)}
+				/>
+				<MenuItem
+					text="Add"
+					icon="add"
+					onClick={() => o.addEvent(t, o.events.length + 1)}
+				/>
+			</Menu>,
+			{ left: e.clientX, top: e.clientY },
+			() => {
+				this.contextMenuT = undefined;
+				this.selectedEventId = -1;
+			}
+		);
+	}
+
+	private renderEvent(
+		evt: ObservableEvent,
+		playground: PlaygroundViewModel,
+		idx: number
+	): JSX.Element {
+		const p = this.props.start.add({
+			y: this.props.scaling.getY(evt.time),
+		});
+		const o = this.props.observable.observable;
+
+		const isLarge =
+			playground.timedObjDragBehavior.isDataEqualTo(evt.id) ||
+			this.selectedEventId === evt.id;
+
+		return (
+			<g key={evt.id}>
+				<SvgCircle
+					className={classNames(
+						"event",
+						o instanceof MutableObservableHistory && "mutable",
+						isLarge && "large"
+					)}
+					onContextMenu={e => {
+						if (o instanceof MutableObservableHistory) {
+							e.preventDefault();
+							this.selectedEventId = evt.id;
+							this.showEventContextMenu(o, evt, e);
+						}
+					}}
+					center={p}
+					radius={4}
+					stroke="black"
+					onMouseDown={e => {
+						if (evt instanceof MutableObservableEvent) {
+							this.handleMouseDownOnTimedObj(
+								e,
+								evt.id,
+								t => (evt.time = t)
+							);
+						}
+					}}
+				/>
+				<SvgText
+					childRef={text => {
+						if (!text) {
+							//this.widths.delete(idx);
+						} else {
+							this.props.observable.textWidths.set(
+								idx,
+								text.getBBox().width
+							);
+						}
+					}}
+					position={p.add(new Point(10, 0))}
+					textAnchor="start"
+					dominantBaseline="middle"
+				>
+					{JSON.stringify(evt.data)}
+				</SvgText>
+			</g>
+		);
+	}
+
+	private showEventContextMenu(
+		o: MutableObservableHistory<any>,
+		evt: ObservableEvent,
+		e: React.MouseEvent<SVGCircleElement, MouseEvent>
+	) {
+		ContextMenu.show(
+			<Menu>
+				<MenuItem
+					text="Delete"
+					icon="delete"
+					onClick={() => o.removeEvent(evt)}
+				/>
+			</Menu>,
+			{ left: e.clientX, top: e.clientY },
+			() => {
+				this.selectedEventId = -1;
+			}
+		);
+	}
+
+	private renderCross({ center }: { center: Point }) {
+		const o = this.props.observable.observable;
+
+		return (
+			<g
+				className={classNames(
+					"end",
+					o instanceof MutableObservableHistory && "mutable",
+					this.endSelected && "selected"
+				)}
+				onMouseDown={e => {
+					if (o instanceof MutableObservableHistory) {
+						this.endSelected = true;
+						this.handleMouseDownOnTimedObj(
+							e,
+							-1,
+							t => (o.endTime = t),
+							() => (this.endSelected = false)
+						);
+					}
+				}}
+				onContextMenu={e => {
+					if (o instanceof MutableObservableHistory) {
+						e.preventDefault();
+						this.endSelected = true;
+						ContextMenu.show(
+							<Menu>
+								<MenuItem
+									text="Remove End"
+									icon="delete"
+									onClick={() => (o.endTime = undefined)}
+								/>
+							</Menu>,
+							{ left: e.clientX, top: e.clientY },
+							() => {
+								this.endSelected = false;
+							}
+						);
+					}
+				}}
+			>
+				<SvgCircle className="dragHandle" center={center} radius={5} />
+				<SvgLine
+					start={center.add({ x: -5, y: -5 })}
+					end={center.add({ x: 5, y: 5 })}
+					stroke="black"
+				/>
+				<SvgLine
+					start={center.add({ x: -5, y: 5 })}
+					end={center.add({ x: 5, y: -5 })}
+					stroke="black"
+				/>
 			</g>
 		);
 	}

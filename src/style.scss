@@ -87,10 +87,26 @@ body,
 				transition: none;
 			}
 		}
+
+		.end {
+			.dragHandle {
+				stroke: transparent;
+				fill: transparent;
+			}
+			line {
+				stroke-width: 2px;
+			}
+		}
+		.end.mutable:hover,
+		.end.selected {
+			line {
+				stroke-width: 4px;
+			}
+		}
 	}
 
 	circle.large,
-	circle.event:hover {
+	circle.event.mutable:hover {
 		stroke-width: 5;
 	}
 }
