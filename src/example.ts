@@ -19,10 +19,10 @@ import {
 	withLatestFrom,
 	takeUntil,
 } from "rxjs/operators";
-import { MutableObservableHistoryGroup } from "./Model/Mutable";
+import { MutableObservableGroup } from "./Model/MutableObservableGroup";
 import { ObservableGroup, ObservableGroups } from "./Model/ObservableGroups";
 import { TrackingObservableGroup } from "./Model/Tracking";
-import { TypeScriptTrackingObservableGroup } from "./Model/TypeScriptTrackingObservableGroup";
+import { TSComputedObservableGroup } from "./Model/TSComputedObservableGroup";
 import { ObservableComputer } from "./Model/types";
 
 function mergeFilter<T>(
@@ -60,7 +60,7 @@ interface Ringing {
 //sampleGroups.addGroup(sampleData(sampleGroups, "data2"));
 
 function sampleData(groups: ObservableGroups, name: string): ObservableGroup {
-	const group = new MutableObservableHistoryGroup();
+	const group = new MutableObservableGroup();
 	const ringings: Ringing[] = [
 		{ r: true, t: 0 },
 		{ r: false, t: 8 },
@@ -76,17 +76,6 @@ function sampleData(groups: ObservableGroups, name: string): ObservableGroup {
 		group.history.addEvent(r.t, i++);
 	}
 	return group;
-}
-
-function zipped(groups: ObservableGroups): ObservableGroup {
-	return new TrackingObservableGroup(
-		groups,
-		(getObservable, scheduler, track) => {
-			return groups
-				.getResultingObservable("data1", scheduler)
-				.pipe(debounceTime(10, scheduler));
-		}
-	);
 }
 
 /*

@@ -1,4 +1,4 @@
-import { Point } from "./Point";
+import { Point, Rectangle } from "./Point";
 import * as React from "react";
 import { StandardLonghandProperties, Properties } from "csstype";
 
@@ -74,17 +74,18 @@ export function SvgLine(
 }
 
 export function SvgRect(
-	props: { position: Point; size: Point; fill?: string } & SvgAttributes<
+	props: { rectangle: Rectangle; fill?: string } & SvgAttributes<
 		SVGRectElement
 	>
 ) {
+	const r = props.rectangle;
 	return (
 		<rect
-			x={props.position.x}
-			y={props.position.y}
-			width={props.size.x}
-			height={props.size.y}
-			{...omit(props, ["position", "size"])}
+			x={r.topLeft.x}
+			y={r.topLeft.y}
+			width={r.size.x}
+			height={r.size.y}
+			{...omit(props, ["rectangle"])}
 		/>
 	);
 }

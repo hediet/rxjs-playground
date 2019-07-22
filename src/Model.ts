@@ -1,7 +1,7 @@
 import { PlaygroundViewModel } from "./Components/ViewModels";
 import { ObservableGroups } from "./Model/ObservableGroups";
-import { MutableObservableHistoryGroup } from "./Model/Mutable";
-import { TypeScriptTrackingObservableGroup } from "./Model/TypeScriptTrackingObservableGroup";
+import { MutableObservableGroup } from "./Model/MutableObservableGroup";
+import { TSComputedObservableGroup } from "./Model/TSComputedObservableGroup";
 
 export class Model {
 	public readonly playground = new PlaygroundViewModel(
@@ -9,9 +9,9 @@ export class Model {
 	);
 
 	constructor() {
-		this.playground.groups.addGroup(new MutableObservableHistoryGroup());
+		this.playground.groups.addGroup(new MutableObservableGroup());
 		this.playground.groups.addGroup(
-			new TypeScriptTrackingObservableGroup(
+			new TSComputedObservableGroup(
 				this.playground.typeScriptService,
 				this.playground.groups
 			)

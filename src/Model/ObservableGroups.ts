@@ -1,13 +1,6 @@
 import { observable } from "mobx";
-import { SchedulerLike, Observable, from, of, NEVER, merge, empty } from "rxjs";
-import {
-	flatMap,
-	delay,
-	map,
-	concat,
-	filter,
-	ignoreElements,
-} from "rxjs/operators";
+import { from, identity, NEVER, Observable, of, SchedulerLike } from "rxjs";
+import { concat, delay, flatMap, map, takeUntil } from "rxjs/operators";
 
 export class ObservableGroups {
 	@observable private readonly _groups = new Set<ObservableGroup>();
@@ -76,7 +69,7 @@ export abstract class ObservableGroup {
 
 	public readonly id = id++;
 
-	@observable public name: string = `group ${this.id}`;
+	@observable public name: string = `obs${this.id}`;
 	@observable public position: number = 0;
 
 	public getPositionSortKey(idx: number) {
@@ -106,6 +99,8 @@ export abstract class ObservableGroup {
 	public get resultingObservableHistory(): ObservableHistory | undefined {
 		return this.observables[this.observables.length - 1];
 	}
+
+	public abstract reset(): void;
 }
 
 export abstract class ObservableHistory {
@@ -113,17 +108,13 @@ export abstract class ObservableHistory {
 	public abstract get events(): ReadonlyArray<ObservableEvent>;
 
 	public asObservable<T>(scheduler: SchedulerLike): Observable<T> {
-		return merge(
-			from(this.events).pipe(
-				flatMap(v => of(v).pipe(delay(v.time, scheduler))),
-				map(e => e.data as T)
-			),
+		return from(this.events).pipe(
+			flatMap(v => of(v).pipe(delay(v.time, scheduler))),
+			map(e => e.data as T),
+			concat(NEVER),
 			this.endTime
-				? from([0]).pipe(
-						delay(this.endTime, scheduler),
-						ignoreElements()
-				  )
-				: NEVER
+				? takeUntil(from([0]).pipe(delay(this.endTime, scheduler)))
+				: identity
 		);
 	}
 

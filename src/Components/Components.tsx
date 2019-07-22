@@ -2,7 +2,6 @@ import { observer } from "mobx-react";
 import * as React from "react";
 import { Model } from "../Model";
 import { PlaygroundView } from "./PlaygroundView";
-import classnames = require("classnames");
 
 @observer
 export class GUI extends React.Component<{ model: Model }, {}> {

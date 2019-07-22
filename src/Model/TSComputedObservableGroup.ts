@@ -1,23 +1,16 @@
 import { TrackingObservableGroupBase } from "./Tracking";
 import { SchedulerLike, Observable } from "rxjs";
 import { observable, computed, autorun, action } from "mobx";
-import { ObservableComputer, GetObservableFn, TrackFn } from "./types";
+import { ObservableComputer, Observables, TrackFn } from "./types";
 import { ObservableGroups } from "./ObservableGroups";
 import * as ts from "typescript";
-import { TsModel, TypeScriptService } from "./TypeScriptService";
+import { TsModel, TSService } from "./TSService";
 
-export class TypeScriptTrackingObservableGroup extends TrackingObservableGroupBase {
-	public readonly model: TsModel;
-
-	constructor(tsService: TypeScriptService, groups: ObservableGroups) {
-		super(groups);
-
-		this.model = tsService.createTypeScriptModel(`
-import * as rx from "rxjs";
+const initialProgram = `import * as rx from "rxjs";
 import * as op from "rxjs/operators";
 import { visualize } from "@hediet/rxjs-visualizer";
 
-visualize((getObservable, scheduler, track) => {
+visualize((observables, scheduler, track) => {
 	return rx
 		.from([1, 2, 3])
 		.pipe(
@@ -26,7 +19,15 @@ visualize((getObservable, scheduler, track) => {
 			)
 		);
 });
-`);
+`;
+
+export class TSComputedObservableGroup extends TrackingObservableGroupBase {
+	public readonly model: TsModel;
+
+	constructor(tsService: TSService, groups: ObservableGroups) {
+		super(groups);
+
+		this.model = tsService.createTypeScriptModel(initialProgram);
 
 		autorun(() => {
 			this.model.registerSpecificTypes([
@@ -37,6 +38,10 @@ visualize((getObservable, scheduler, track) => {
 
 		// don't use monaco to compile for the first time to speed things up
 		this.transpiledJs = ts.transpile(this.model.textModel.getValue());
+	}
+
+	public reset(): void {
+		this.model.textModel.setValue(initialProgram);
 	}
 
 	private async compile() {
@@ -60,7 +65,7 @@ visualize((getObservable, scheduler, track) => {
 	}
 
 	protected getObservable(
-		getObservable: GetObservableFn,
+		observables: Observables,
 		scheduler: SchedulerLike,
 		track: TrackFn
 	): Observable<unknown> | { error: string } {
@@ -68,7 +73,7 @@ visualize((getObservable, scheduler, track) => {
 		if (typeof ctor === "object") {
 			return ctor;
 		}
-		return ctor(getObservable, scheduler, track);
+		return ctor(observables, scheduler, track);
 	}
 }
 

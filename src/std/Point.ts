@@ -106,3 +106,26 @@ export function scale(
 
 	return { clientOffset: clientOffset2, clientZoom: zoom };
 }
+
+export class Rectangle {
+	public static ofSize(position: Point, size: Point): Rectangle {
+		return new Rectangle(position, position.add(size));
+	}
+
+	constructor(
+		public readonly topLeft: Point,
+		public readonly bottomRight: Point
+	) {}
+
+	get size(): Point {
+		return this.bottomRight.sub(this.topLeft);
+	}
+
+	get topRight(): Point {
+		return new Point(this.bottomRight.x, this.topLeft.y);
+	}
+
+	get bottomLeft(): Point {
+		return new Point(this.topLeft.x, this.bottomRight.y);
+	}
+}

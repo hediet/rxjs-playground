@@ -1,13 +1,13 @@
 import { observer } from "mobx-react";
-import { Point } from "../std/Point";
+import { Point, Rectangle } from "../std/Point";
 import { ObservableMap, observable, autorun, computed, toJS } from "mobx";
 import { SvgRect, SvgLine, SvgText } from "../std/SvgElements";
 import { ObservableGroup, ObservableHistory } from "../Model/ObservableGroups";
 import { PositionTransformation } from "../std/DragBehavior";
-import { SvgContext, Scaling } from "./utils";
+import { SvgContext, TimeOffsetConversion } from "./utils";
 import React = require("react");
 import { ObservableView } from "./ObservableView";
-import { MutableObservableHistoryGroup } from "../Model/Mutable";
+import { MutableObservableGroup } from "../Model/MutableObservableGroup";
 import { ObservableGroupViewModel, PlaygroundViewModel } from "./ViewModels";
 import { ContextMenu, Menu, MenuItem } from "@blueprintjs/core";
 import classnames = require("classnames");
@@ -18,7 +18,7 @@ export class ObservableGroupView extends React.Component<{
 	x: number;
 	height: number;
 	svgContext: SvgContext;
-	scaling: Scaling;
+	timeOffsetConversion: TimeOffsetConversion;
 	playground: PlaygroundViewModel;
 }> {
 	constructor(props: any) {
@@ -31,16 +31,24 @@ export class ObservableGroupView extends React.Component<{
 			x,
 			height,
 			svgContext,
-			scaling,
+			timeOffsetConversion,
 			playground,
 		} = this.props;
-		const p = new Point(group.dragX !== undefined ? group.dragX : x, 0);
+		const position = new Point(
+			group.dragX !== undefined ? group.dragX : x,
+			0
+		);
+		const rectangle = new Rectangle(
+			new Point(0, 1),
+			new Point(this.props.group.width, height + 20)
+		);
 		return (
 			<g
 				className={classnames(
+					"component-ObservableGroupView",
 					playground.selectedGroup === group.group && "selectedGroup"
 				)}
-				transform={`translate(${p.x} ${p.y})`}
+				transform={`translate(${position.x} ${position.y})`}
 				style={
 					playground.groupDragBehavior.testActiveData(
 						d => d === group
@@ -54,21 +62,9 @@ export class ObservableGroupView extends React.Component<{
 					playground.selectedGroup = this.props.group.group;
 				}}
 			>
-				<SvgLine
-					className="groupBorder"
-					start={new Point(0, 0)}
-					end={new Point(0, height)}
-				/>
-				<SvgLine
-					className="groupBorder"
-					start={new Point(this.props.group.width, 0)}
-					end={new Point(this.props.group.width, height)}
-				/>
 				<SvgRect
-					className="groupBackground"
-					position={new Point(0, 0)}
-					size={new Point(this.props.group.width, height)}
-					stroke={"gray"}
+					className="part-groupBackground"
+					rectangle={rectangle}
 					onMouseDown={e => {
 						e.preventDefault();
 						e.stopPropagation();
@@ -96,8 +92,7 @@ export class ObservableGroupView extends React.Component<{
 					}}
 				/>
 				<SvgText
-					className="title"
-					style={{ textAnchor: "start" }}
+					className="part-title"
 					position={
 						new Point(
 							group.widthSum(group.observables.length - 1),
@@ -114,8 +109,9 @@ export class ObservableGroupView extends React.Component<{
 				{group.observables.map((observable, idx) => (
 					<ObservableView
 						key={idx}
-						start={new Point(10 + group.widthSum(idx), 30)}
-						scaling={scaling}
+						x={10 + group.widthSum(idx)}
+						height={height}
+						timeOffsetConversion={timeOffsetConversion}
 						observable={observable}
 						svgContext={svgContext}
 						playground={playground}

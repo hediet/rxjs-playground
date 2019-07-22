@@ -1,4 +1,11 @@
-import { observable, computed, autorun, ObservableMap } from "mobx";
+import {
+	observable,
+	computed,
+	autorun,
+	ObservableMap,
+	action,
+	runInAction,
+} from "mobx";
 
 import {
 	ObservableGroup,
@@ -6,7 +13,8 @@ import {
 	ObservableGroups,
 } from "../Model/ObservableGroups";
 import { DragBehavior } from "../std/DragBehavior";
-import { TypeScriptService } from "../Model/TypeScriptService";
+import { TSService } from "../Model/TSService";
+import { EventTimer } from "@hediet/std/timer";
 
 export class PlaygroundViewModel {
 	constructor(public readonly groups: ObservableGroups) {}
@@ -17,11 +25,91 @@ export class PlaygroundViewModel {
 
 	public readonly timedObjDragBehavior = new DragBehavior();
 
-	public readonly typeScriptService = new TypeScriptService();
+	public readonly typeScriptService = new TSService();
 
 	@observable selectedGroup: ObservableGroup | undefined = undefined;
 
-	@observable recording: boolean = false;
+	public readonly recordingModel = new RecordingModel();
+}
+
+export class RecordingModel {
+	private readonly timer = new EventTimer(20, "stopped");
+
+	constructor() {
+		//this.timer.onTick.sub(() => {
+
+		//});
+		this.update();
+	}
+
+	private update() {
+		requestAnimationFrame(() => {
+			runInAction("Update time", () => {
+				this.currentDate = new Date();
+			});
+			this.update();
+		});
+	}
+
+	@observable currentDate: Date = new Date();
+
+	@action toggle(): void {
+		if (this.isRecording) {
+			this.stop();
+		} else {
+			this.start();
+		}
+	}
+
+	@action
+	public stop(): void {
+		const t = this.currentRecordTime;
+		this.recordStartDateTime = undefined;
+		this.timer.stop();
+		if (t) {
+			this.startTime = t;
+		}
+	}
+
+	private startTimes = new Array<number>();
+
+	@action
+	public start(): void {
+		this.startTimes.push(this.startTime);
+		this.timer.startImmediate();
+		this.recordStartDateTime = new Date();
+	}
+
+	@action
+	public resetStart(): void {
+		if (this.startTimes.length > 0) {
+			this.startTime = this.startTimes.pop()!;
+		}
+	}
+
+	public get isRecording(): boolean {
+		return !!this.recordStartDateTime;
+	}
+
+	@observable recordStartDateTime: Date | undefined = undefined;
+	getRecordTime(date: Date): number | undefined {
+		if (!this.recordStartDateTime) {
+			return undefined;
+		}
+		const msDiff = date.getTime() - this.recordStartDateTime.getTime();
+		return this.startTime + (msDiff * this.ticksPerSecond) / 1000;
+	}
+
+	get currentRecordTime(): number | undefined {
+		return this.getRecordTime(this.currentDate);
+	}
+
+	get currentRecordTimeOrStart(): number {
+		return this.currentRecordTime || this.startTime;
+	}
+
+	@observable startTime: number = 0;
+	@observable ticksPerSecond: number = 100;
 }
 
 export class ObservableGroupViewModel {

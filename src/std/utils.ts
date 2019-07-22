@@ -42,3 +42,11 @@ export function sortByNumericKey<T>(
 		return keySelector(a) - keySelector(b);
 	};
 }
+
+export function seq(startInclusive: number, endInclusive: number): number[] {
+	const result = new Array<number>();
+	for (let i = startInclusive; i <= endInclusive; i++) {
+		result.push(i);
+	}
+	return result;
+}

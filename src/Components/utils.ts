@@ -6,7 +6,8 @@ export interface SvgContext {
 	mouseToSvgCoordinates(mousePos: Point): Point;
 }
 
-export interface Scaling {
-	getY(time: number): number;
-	getTime(y: number): number;
+export interface TimeOffsetConversion {
+	getOffset(time: number): number;
+	getTime(offset: number): number;
+	offsetPerTime: number;
 }

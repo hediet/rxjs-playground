@@ -13,12 +13,10 @@ import {
 } from "./ObservableGroups";
 import { computed, observable, autorun } from "mobx";
 import { tap } from "rxjs/operators";
-import { ObservableComputer } from "./types";
+import { ObservableComputer, Observables } from "./types";
 import { sortByNumericKey } from "../std/utils";
-import { string } from "prop-types";
 
 export type TrackFn = <T>(name?: string) => MonoTypeOperatorFunction<T>;
-export type GetObservableFn = <T>(name: string) => Observable<T>;
 
 let id = 0;
 
@@ -51,7 +49,7 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 	@computed
 	public get observables(): ObservableHistory[] {
 		const scheduler = new VirtualTimeScheduler();
-		const observables = new Array<ObservableHistory>();
+		const observableHistories = new Array<ObservableHistory>();
 
 		const trackFn = (name?: string | (() => string)) => {
 			const n =
@@ -65,7 +63,7 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 				return defer(() => {
 					const history = new TrackingObservableHistory(n);
 
-					observables.unshift(history);
+					observableHistories.unshift(history);
 					history.startTime = scheduler.now();
 					return source.pipe(
 						tap({
@@ -83,19 +81,27 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 			};
 		};
 
-		const getObservable: GetObservableFn = <T>(name: string) => {
-			const o = this.visibleObservables.get(name);
-			if (!o) {
-				throw new Error(
-					`There is no visible observable with name "${name}"!`
-				);
-			}
-			return o.asObservable<T>(scheduler);
+		const observables: Observables<never> = {
+			get: <T>(name: string): Observable<T> => {
+				const o = this.visibleObservables.get(name);
+				if (!o) {
+					throw new Error(
+						`There is no visible observable with name "${name}"!`
+					);
+				}
+				return o.asObservable<T>(scheduler);
+			},
 		};
+
+		for (const name of this.visibleObservables.keys()) {
+			Object.defineProperty(observables, name, {
+				get: () => observables.get(name as never),
+			});
+		}
 
 		try {
 			const obsOrError = this.getObservable(
-				getObservable,
+				observables,
 				scheduler,
 				trackFn
 			);
@@ -104,18 +110,18 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 			} else {
 				obsOrError.pipe(trackFn(() => this.name)).subscribe();
 				scheduler.flush();
-				console.log(observables, obsOrError);
+				console.log(observableHistories, obsOrError);
 			}
 		} catch (e) {
 			console.error(e);
 			return [];
 		}
 
-		return observables;
+		return observableHistories;
 	}
 
 	protected abstract getObservable(
-		getObservable: GetObservableFn,
+		observables: Observables<string>,
 		scheduler: SchedulerLike,
 		track: TrackFn
 	): Observable<unknown> | { error: string };
@@ -125,21 +131,23 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 	}
 }
 
-export class TrackingObservableGroup extends TrackingObservableGroupBase {
+export abstract class TrackingObservableGroup extends TrackingObservableGroupBase {
 	@observable public observableCtor: ObservableComputer;
 
 	protected getObservable(
-		getObservable: GetObservableFn,
+		observables: Observables,
 		scheduler: SchedulerLike,
 		track: TrackFn
 	) {
-		return this.observableCtor(getObservable, scheduler, track);
+		return this.observableCtor(observables, scheduler, track);
 	}
 
 	constructor(groups: ObservableGroups, observableCtor: ObservableComputer) {
 		super(groups);
 		this.observableCtor = observableCtor;
 	}
+
+	public abstract reset(): void;
 }
 
 export class TrackingObservableHistory extends ObservableHistory {

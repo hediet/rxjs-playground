@@ -1,7 +1,7 @@
 import * as monaco from "monaco-editor";
 import { LanguageService } from "typescript";
 
-export class TypeScriptService {
+export class TSService {
 	private modelId = 0;
 
 	constructor() {
@@ -28,8 +28,9 @@ export class TypeScriptService {
 			/.*\.d\.ts/
 		);
 		for (const key of r.keys()) {
-			const content = r(key).default;
+			let content = r(key).default as string;
 			const path = `file:///node_modules/rxjs/${key}`;
+			content = content.replace(/scheduler\?/g, "scheduler");
 			monaco.languages.typescript.typescriptDefaults.addExtraLib(
 				content,
 				path
@@ -88,7 +89,7 @@ export function visualize(computer: ObservableComputer<${names}>): void;
 			this.uri.toString()
 		);
 		const d2 = await proxy.getSyntacticDiagnostics(this.uri.toString());
-		console.log(semanticDiagnostics, d2);
+
 		if (semanticDiagnostics.length + d2.length > 0) {
 			return {
 				kind: "error",

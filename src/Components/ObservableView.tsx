@@ -1,31 +1,25 @@
 import { observer } from "mobx-react";
-import { Point } from "../std/Point";
+import { Point, point, Rectangle } from "../std/Point";
 import { SvgText, SvgLine, SvgCircle, SvgRect } from "../std/SvgElements";
 import { PositionTransformation } from "../std/DragBehavior";
-import { SvgContext, Scaling } from "./utils";
+import { SvgContext, TimeOffsetConversion } from "./utils";
 import React = require("react");
 import { ObservableViewModel, PlaygroundViewModel } from "./ViewModels";
-import {
-	Popover,
-	ContextMenuTarget,
-	Menu,
-	MenuItem,
-	ContextMenu,
-} from "@blueprintjs/core";
+import { Menu, MenuItem, ContextMenu } from "@blueprintjs/core";
 import classNames = require("classnames");
 import { observable } from "mobx";
 import {
-	MutableObservableHistoryGroup,
 	MutableObservableHistory,
 	MutableObservableEvent,
-} from "../Model/Mutable";
+} from "../Model/MutableObservableGroup";
 import { ObservableEvent } from "../Model/ObservableGroups";
 
 @observer
 export class ObservableView extends React.Component<{
 	observable: ObservableViewModel;
-	scaling: Scaling;
-	start: Point;
+	timeOffsetConversion: TimeOffsetConversion;
+	x: number;
+	height: number;
 	playground: PlaygroundViewModel;
 	svgContext: SvgContext;
 }> {
@@ -43,15 +37,18 @@ export class ObservableView extends React.Component<{
 	): void {
 		e.preventDefault();
 		e.stopPropagation();
-		const zero = this.props.start;
 		const op = this.props.playground.timedObjDragBehavior
 			.start(
 				data,
 				new PositionTransformation(p =>
 					this.props.svgContext.mouseToSvgCoordinates(p)
+				).then(
+					p =>
+						new Point(
+							0,
+							this.props.timeOffsetConversion.getTime(p.y)
+						)
 				)
-					.translate(zero.mul(-1))
-					.then(p => new Point(0, this.props.scaling.getTime(p.y)))
 			)
 			.endOnMouseUp();
 
@@ -68,40 +65,42 @@ export class ObservableView extends React.Component<{
 
 	render() {
 		const playground = this.props.playground;
-
-		const zero = this.props.start;
 		const o = this.props.observable.observable;
-		const s = this.props.scaling;
-		const y1 = s.getY(o.startTime);
+		const timeOffsetConversion = this.props.timeOffsetConversion;
+		const x = this.props.x;
 
-		const start = zero.add({ y: y1 });
-		const y2 = o.endTime ? s.getY(o.endTime) : 10000;
-
-		const end = zero.add({
-			y: y2,
+		const start = point({
+			x,
+			y: timeOffsetConversion.getOffset(o.startTime),
+		});
+		const end = point({
+			x,
+			y: o.endTime
+				? timeOffsetConversion.getOffset(o.endTime)
+				: this.props.height + 100,
 		});
 
 		return (
-			<g>
+			<g className="component-ObservableView">
 				<SvgLine
+					className="part-start"
 					start={start.add({ x: -5 })}
 					end={start.add({ x: 5 })}
-					stroke="black"
 				/>
-				<SvgLine start={start} end={end} stroke="black" />
+				<SvgLine className="part-lifetime" start={start} end={end} />
 				<SvgRect
-					position={start.sub({ x: 10 })}
-					size={new Point(20, 10000)}
-					fill="transparent"
+					className="part-context-menu-space"
+					rectangle={Rectangle.ofSize(
+						start.sub({ x: 10 }),
+						new Point(20, this.props.height)
+					)}
 					onMouseMove={e => {
-						const p = this.props.svgContext
-							.mouseToSvgCoordinates(
-								new Point(e.clientX, e.clientY)
-							)
-							.sub(zero);
+						const p = this.props.svgContext.mouseToSvgCoordinates(
+							new Point(e.clientX, e.clientY)
+						);
 
 						if (o instanceof MutableObservableHistory) {
-							this.temporaryEventT = this.props.scaling.getTime(
+							this.temporaryEventT = timeOffsetConversion.getTime(
 								p.y
 							);
 						}
@@ -132,21 +131,20 @@ export class ObservableView extends React.Component<{
 				/>
 				{(this.temporaryEventT || this.contextMenuT) && (
 					<SvgCircle
-						pointerEvents="none"
-						className="event-temporary"
-						center={zero.add({
-							y: this.props.scaling.getY(
+						className="part-event-temporary"
+						center={point({
+							x,
+							y: timeOffsetConversion.getOffset(
 								this.temporaryEventT || this.contextMenuT!
 							),
 						})}
 						radius={4}
-						stroke="black"
 					/>
 				)}
 
-				{this.renderCross({ center: end })}
+				{this.renderEnd({ center: end })}
 
-				{this.props.observable.observable.events.map((evt, idx) => {
+				{o.events.map((evt, idx) => {
 					return this.renderEvent(evt, playground, idx);
 				})}
 			</g>
@@ -171,6 +169,13 @@ export class ObservableView extends React.Component<{
 					icon="add"
 					onClick={() => o.addEvent(t, o.events.length + 1)}
 				/>
+				<MenuItem
+					text="Set Recording Marker"
+					icon="map-marker"
+					onClick={() =>
+						(this.props.playground.recordingModel.startTime = t)
+					}
+				/>
 			</Menu>,
 			{ left: e.clientX, top: e.clientY },
 			() => {
@@ -185,8 +190,9 @@ export class ObservableView extends React.Component<{
 		playground: PlaygroundViewModel,
 		idx: number
 	): JSX.Element {
-		const p = this.props.start.add({
-			y: this.props.scaling.getY(evt.time),
+		const center = point({
+			x: this.props.x,
+			y: this.props.timeOffsetConversion.getOffset(evt.time),
 		});
 		const o = this.props.observable.observable;
 
@@ -195,10 +201,9 @@ export class ObservableView extends React.Component<{
 			this.selectedEventId === evt.id;
 
 		return (
-			<g key={evt.id}>
+			<g key={evt.id} className="part-event">
 				<SvgCircle
 					className={classNames(
-						"event",
 						o instanceof MutableObservableHistory && "mutable",
 						isLarge && "large"
 					)}
@@ -209,7 +214,7 @@ export class ObservableView extends React.Component<{
 							this.showEventContextMenu(o, evt, e);
 						}
 					}}
-					center={p}
+					center={center}
 					radius={4}
 					stroke="black"
 					onMouseDown={e => {
@@ -233,7 +238,7 @@ export class ObservableView extends React.Component<{
 							);
 						}
 					}}
-					position={p.add(new Point(10, 0))}
+					position={center.add(new Point(10, 0))}
 					textAnchor="start"
 					dominantBaseline="middle"
 				>
@@ -263,13 +268,13 @@ export class ObservableView extends React.Component<{
 		);
 	}
 
-	private renderCross({ center }: { center: Point }) {
+	private renderEnd({ center }: { center: Point }) {
 		const o = this.props.observable.observable;
 
 		return (
 			<g
 				className={classNames(
-					"end",
+					"part-end",
 					o instanceof MutableObservableHistory && "mutable",
 					this.endSelected && "selected"
 				)}
@@ -304,7 +309,11 @@ export class ObservableView extends React.Component<{
 					}
 				}}
 			>
-				<SvgCircle className="dragHandle" center={center} radius={5} />
+				<SvgCircle
+					className="part-dragHandle"
+					center={center}
+					radius={5}
+				/>
 				<SvgLine
 					start={center.add({ x: -5, y: -5 })}
 					end={center.add({ x: 5, y: 5 })}

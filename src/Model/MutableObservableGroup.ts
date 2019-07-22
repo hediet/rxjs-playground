@@ -8,9 +8,8 @@ import { sortByNumericKey } from "../std/utils";
 import * as monaco from "monaco-editor";
 import { Subject } from "rxjs";
 import { debounceTime } from "rxjs/operators";
-import { disposeOnUnmount } from "mobx-react";
 
-export class MutableObservableHistoryGroup extends ObservableGroup {
+export class MutableObservableGroup extends ObservableGroup {
 	public readonly history = new MutableObservableHistory(this);
 	public readonly observables = [this.history];
 
@@ -78,7 +77,12 @@ export class MutableObservableHistoryGroup extends ObservableGroup {
 		this.debounceSubject.pipe(debounceTime(100)).forEach(json => {
 			if (!updating) {
 				updating = true;
-				this.model.setValue(json);
+				this.model.pushEditOperations(
+					[],
+					[{ range: this.model.getFullModelRange(), text: json }],
+					() => []
+				);
+				this.model.pushStackElement();
 				updating = false;
 			}
 		});
@@ -91,10 +95,14 @@ export class MutableObservableHistoryGroup extends ObservableGroup {
 			}
 		});
 	}
+
+	public reset(): void {
+		this.history.clear();
+	}
 }
 
 export class MutableObservableHistory<T> extends ObservableHistory {
-	constructor(private readonly parent: MutableObservableHistoryGroup) {
+	constructor(private readonly parent: MutableObservableGroup) {
 		super();
 	}
 
