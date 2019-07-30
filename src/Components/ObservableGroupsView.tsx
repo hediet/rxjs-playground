@@ -2,9 +2,7 @@ import { autorun, observable, reaction, runInAction, computed } from "mobx";
 import { disposeOnUnmount, observer } from "mobx-react";
 import { Subject } from "rxjs";
 import { debounceTime } from "rxjs/operators";
-import { MutableObservableGroup } from "../Model/MutableObservableGroup";
 import { Point, Rectangle } from "../std/Point";
-import { SvgLine } from "../std/SvgElements";
 import { sortByNumericKey } from "../std/utils";
 import { ObservableGroupView } from "./ObservableGroupView";
 import { TimeAxis } from "./TimeAxis";
@@ -12,6 +10,7 @@ import { SvgContext, TimeOffsetConversion } from "./utils";
 import { ObservableGroupViewModel, PlaygroundViewModel } from "./ViewModels";
 import React = require("react");
 import classNames = require("classnames");
+import { RecordingMarker } from "./RecordingMarker";
 
 @observer
 export class ObservableGroupsView extends React.Component<{
@@ -19,40 +18,35 @@ export class ObservableGroupsView extends React.Component<{
 }> {
 	@observable private groups: ObservableGroupViewModel[] = [];
 
-	constructor(props: any) {
-		super(props);
+	@disposeOnUnmount
+	private readonly _updateGroupViewModelsReaction = reaction(
+		() => [...this.props.playground.groups.groups],
+		groups => {
+			this.groups = groups.map(
+				g =>
+					this.groups.find(w => w.group === g) ||
+					new ObservableGroupViewModel(g)
+			);
+		},
+		{ fireImmediately: true }
+	);
 
-		reaction(
-			() => [...this.props.playground.groups.groups],
-			groups => {
-				this.groups = groups.map(
-					g =>
-						this.groups.find(w => w.group === g) ||
-						new ObservableGroupViewModel(g)
-				);
-			},
-			{ fireImmediately: true }
-		);
-
-		autorun(() => {
-			if (this.props.playground.groupDragBehavior.activeOperation) {
-				this.props.playground.groupDragBehavior.activeOperation.onEnd.sub(
-					() => {
-						runInAction(() => {
-							if (this.lastGroupOrderWhileDragging) {
-								let i = -10000000;
-								for (const g of this
-									.lastGroupOrderWhileDragging) {
-									g.group.position = i;
-									i++;
-								}
-							}
-						});
-					}
-				);
-			}
-		});
-	}
+	@disposeOnUnmount
+	private readonly _setGroupOrderAfterDragging = autorun(() => {
+		if (this.props.playground.groupDragBehavior.activeOperation) {
+			this.props.playground.groupDragBehavior.activeOperation.onEnd.sub(
+				() => {
+					runInAction("Set group order after dragging", () => {
+						if (this.lastGroupOrderWhileDragging) {
+							this.lastGroupOrderWhileDragging.forEach(
+								(val, idx) => (val.group.position = idx)
+							);
+						}
+					});
+				}
+			);
+		}
+	});
 
 	private lastGroupOrderWhileDragging:
 		| ObservableGroupViewModel[]
@@ -60,21 +54,19 @@ export class ObservableGroupsView extends React.Component<{
 
 	private svgContext: SvgContext = { mouseToSvgCoordinates: undefined! };
 	private svgElement: SVGSVGElement | null = null;
-	private initializeContext(svg: SVGSVGElement | null) {
+	private setSvg(svg: SVGSVGElement | null) {
 		this.svgElement = svg;
 		if (!svg) {
 			this.svgContext.mouseToSvgCoordinates = undefined!;
-			return;
+		} else {
+			const pt = svg.createSVGPoint();
+			this.svgContext.mouseToSvgCoordinates = (point: Point) => {
+				pt.x = point.x;
+				pt.y = point.y;
+				var r = pt.matrixTransform(svg.getScreenCTM()!.inverse());
+				return new Point(r.x, r.y);
+			};
 		}
-
-		const pt = svg.createSVGPoint();
-
-		this.svgContext.mouseToSvgCoordinates = (point: Point) => {
-			pt.x = point.x;
-			pt.y = point.y;
-			var r = pt.matrixTransform(svg.getScreenCTM()!.inverse());
-			return new Point(r.x, r.y);
-		};
 	}
 
 	layoutGroups(): {
@@ -167,7 +159,8 @@ export class ObservableGroupsView extends React.Component<{
 			this.timeOffsetConversion = this.getTimeOffsetConversion();
 		});
 
-	@disposeOnUnmount r = autorun(() => {
+	@disposeOnUnmount
+	r = autorun(() => {
 		this.getTimeOffsetConversion(); // trigger dependencies
 		this.debounceSubject.next();
 	});
@@ -179,7 +172,7 @@ export class ObservableGroupsView extends React.Component<{
 		if (this.div) {
 			this.minSvgHeight = this.div.clientHeight - 1;
 		}
-	}, 100);
+	}, 200);
 
 	private readonly setHistoryVisualizerDiv = (div: HTMLDivElement) => {
 		this.div = div;
@@ -243,7 +236,7 @@ export class ObservableGroupsView extends React.Component<{
 				ref={this.setHistoryVisualizerDiv}
 			>
 				<svg
-					ref={svg => this.initializeContext(svg)}
+					ref={svg => this.setSvg(svg)}
 					height={height}
 					style={
 						{
@@ -285,60 +278,6 @@ export class ObservableGroupsView extends React.Component<{
 					/>
 				</svg>
 			</div>
-		);
-	}
-}
-
-export class RecordingMarker extends React.Component<{
-	playground: PlaygroundViewModel;
-	timeOffsetConversion: TimeOffsetConversion;
-	x: number;
-	width: number;
-}> {
-	render() {
-		if (
-			!(
-				this.props.playground.selectedGroup instanceof
-				MutableObservableGroup
-			)
-		) {
-			return <></>;
-		}
-
-		const recordingModel = this.props.playground.recordingModel;
-
-		const recordingY = this.props.timeOffsetConversion.getOffset(
-			recordingModel.currentRecordTime || recordingModel.startTime
-		);
-
-		return (
-			<g
-				className="component-RecordingMarker"
-				onMouseDown={e => {
-					/*if (o instanceof MutableObservableHistory) {
-				this.handleMouseDownOnTimedObj(
-					e,
-					-1,
-					t =>
-						(playground.recordingModel.startTime = t),
-					() => {}
-				);
-			}*/
-				}}
-			>
-				<SvgLine
-					className="visualMarker"
-					start={new Point(this.props.x, recordingY)}
-					end={new Point(this.props.x + this.props.width, recordingY)}
-					stroke="black"
-				/>
-				{/*<SvgLine
-			className="nonVisualMarker"
-			start={start.add({ x: -15, y: recordingY })}
-			end={start.add({ x: 15, y: recordingY })}
-			stroke="transparent"
-		/>*/}
-			</g>
 		);
 	}
 }

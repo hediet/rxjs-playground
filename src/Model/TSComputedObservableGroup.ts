@@ -69,11 +69,11 @@ export class TSComputedObservableGroup extends TrackingObservableGroupBase {
 		scheduler: SchedulerLike,
 		track: TrackFn
 	): Observable<unknown> | { error: string } {
-		const ctor = this.observableCtor;
-		if (typeof ctor === "object") {
-			return ctor;
+		const ctorOrError = this.observableCtor;
+		if (typeof ctorOrError === "object") {
+			return ctorOrError;
 		}
-		return ctor(observables, scheduler, track);
+		return ctorOrError(observables, scheduler, track);
 	}
 }
 

@@ -113,7 +113,6 @@ export class RecordingModel {
 }
 
 export class ObservableGroupViewModel {
-	@observable public orderKey: number = 0;
 	@observable public dragX: number | undefined = undefined;
 	@observable public observables: ObservableViewModel[] = [];
 

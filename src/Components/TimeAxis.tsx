@@ -41,19 +41,18 @@ export class TimeAxis extends React.Component<{
 
 		const axisDT = this.axisDT;
 
-		const firstVisibleTime = Math.floor(
-			timeOffsetConversion.getTime(visibleRectangle.topLeft.y) / axisDT
-		);
-		const lastVisibleTime = Math.ceil(
-			timeOffsetConversion.getTime(visibleRectangle.bottomRight.y) /
-				axisDT
-		);
-		const lastTime = Math.ceil(
-			timeOffsetConversion.getTime(height - x - 10) / axisDT
-		);
+		function getIdx(offset: number, rounding: "ceil" | "floor"): number {
+			return Math[rounding](
+				timeOffsetConversion.getTime(offset) / axisDT
+			);
+		}
+
+		const firstVisibleTime = getIdx(visibleRectangle.topLeft.y, "floor");
+		const lastVisibleTime = getIdx(visibleRectangle.bottomRight.y, "ceil");
+		const lastTime = getIdx(height - x - 10, "ceil");
 
 		return (
-			<g>
+			<g className="component-TimeAxis">
 				<SvgLine
 					start={point({ x, y: timeOffsetConversion.getOffset(0) })}
 					end={point({ x, y: height })}
@@ -67,7 +66,7 @@ export class TimeAxis extends React.Component<{
 							y: timeOffsetConversion.getOffset(t) - 0.5,
 						});
 						return (
-							<g key={idx}>
+							<g key={idx} className="part-TimeLabel">
 								<SvgText
 									position={mid.sub({ x: 10 })}
 									textAnchor="end"

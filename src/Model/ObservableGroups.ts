@@ -9,6 +9,7 @@ export class ObservableGroups {
 	}
 
 	public addGroup(group: ObservableGroup) {
+		group.position = this.groups.size;
 		this._groups.add(group);
 	}
 
@@ -62,12 +63,12 @@ export class ObservableGroups {
 	}
 }
 
-let id = 0;
-
 export abstract class ObservableGroup {
+	private static id = 0;
+
 	abstract get observables(): ReadonlyArray<ObservableHistory>;
 
-	public readonly id = id++;
+	public readonly id = ObservableGroup.id++;
 
 	@observable public name: string = `obs${this.id}`;
 	@observable public position: number = 0;
@@ -75,8 +76,6 @@ export abstract class ObservableGroup {
 	public getPositionSortKey(idx: number) {
 		return idx + this.position * 100000;
 	}
-
-	constructor() {}
 
 	public get minTimeDistanceBetweenItems(): number {
 		let minDist = Number.MAX_VALUE;
@@ -104,7 +103,7 @@ export abstract class ObservableGroup {
 }
 
 export abstract class ObservableHistory {
-	// are always sorted
+	// are sorted by time
 	public abstract get events(): ReadonlyArray<ObservableEvent>;
 
 	public asObservable<T>(scheduler: SchedulerLike): Observable<T> {

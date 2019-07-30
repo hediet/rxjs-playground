@@ -46,12 +46,11 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 		return observables;
 	}
 
-	@computed
-	public get observables(): ObservableHistory[] {
-		const scheduler = new VirtualTimeScheduler();
-		const observableHistories = new Array<ObservableHistory>();
-
-		const trackFn = (name?: string | (() => string)) => {
+	private getTrackFn(
+		observableHistories: ObservableHistory[],
+		scheduler: SchedulerLike
+	): <T>(name?: string | (() => string)) => MonoTypeOperatorFunction<T> {
+		return (name?: string | (() => string)) => {
 			const n =
 				typeof name === "string"
 					? () => name
@@ -80,8 +79,12 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 				});
 			};
 		};
+	}
 
-		const observables: Observables<never> = {
+	private getVisibleObservables(
+		scheduler: SchedulerLike
+	): Observables<never> {
+		const visibleObservables = {
 			get: <T>(name: string): Observable<T> => {
 				const o = this.visibleObservables.get(name);
 				if (!o) {
@@ -92,16 +95,24 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 				return o.asObservable<T>(scheduler);
 			},
 		};
-
 		for (const name of this.visibleObservables.keys()) {
-			Object.defineProperty(observables, name, {
-				get: () => observables.get(name as never),
+			Object.defineProperty(visibleObservables, name, {
+				get: () => visibleObservables.get(name as never),
 			});
 		}
+		return visibleObservables;
+	}
+
+	@computed
+	public get observables(): ObservableHistory[] {
+		const scheduler = new VirtualTimeScheduler();
+		const trackedObservables = new Array<ObservableHistory>();
+		const visibleObservables = this.getVisibleObservables(scheduler);
+		const trackFn = this.getTrackFn(trackedObservables, scheduler);
 
 		try {
 			const obsOrError = this.getObservable(
-				observables,
+				visibleObservables,
 				scheduler,
 				trackFn
 			);
@@ -110,14 +121,13 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 			} else {
 				obsOrError.pipe(trackFn(() => this.name)).subscribe();
 				scheduler.flush();
-				console.log(observableHistories, obsOrError);
 			}
 		} catch (e) {
 			console.error(e);
 			return [];
 		}
 
-		return observableHistories;
+		return trackedObservables;
 	}
 
 	protected abstract getObservable(

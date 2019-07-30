@@ -1,15 +1,11 @@
 import { observer } from "mobx-react";
-import { Point, Rectangle } from "../std/Point";
-import { ObservableMap, observable, autorun, computed, toJS } from "mobx";
-import { SvgRect, SvgLine, SvgText } from "../std/SvgElements";
-import { ObservableGroup, ObservableHistory } from "../Model/ObservableGroups";
 import { PositionTransformation } from "../std/DragBehavior";
-import { SvgContext, TimeOffsetConversion } from "./utils";
-import React = require("react");
+import { Point, Rectangle } from "../std/Point";
+import { SvgRect, SvgText } from "../std/SvgElements";
 import { ObservableView } from "./ObservableView";
-import { MutableObservableGroup } from "../Model/MutableObservableGroup";
+import { SvgContext, TimeOffsetConversion } from "./utils";
 import { ObservableGroupViewModel, PlaygroundViewModel } from "./ViewModels";
-import { ContextMenu, Menu, MenuItem } from "@blueprintjs/core";
+import React = require("react");
 import classnames = require("classnames");
 
 @observer

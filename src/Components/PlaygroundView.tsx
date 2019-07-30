@@ -1,28 +1,15 @@
-import { Model } from "../Model";
-import { observer, disposeOnUnmount } from "mobx-react";
-import { ObservableGroupsView } from "./ObservableGroupsView";
-import {
-	Button,
-	FormGroup,
-	ButtonGroup,
-	Label,
-	NumericInput,
-} from "@blueprintjs/core";
-import { MutableObservableGroup } from "../Model/MutableObservableGroup";
-import React = require("react");
-import { autorun, observable } from "mobx";
-import { TSComputedObservableGroup } from "../Model/TSComputedObservableGroup";
-import { PlaygroundViewModel } from "./ViewModels";
-import { ObservableGroup } from "../Model/ObservableGroups";
+import { observer } from "mobx-react";
 import SplitPane from "react-split-pane";
-import { MonacoEditor } from "./MonacoEditor";
+import { Model } from "../Model";
 import { DetailsPane } from "./DetailsPane";
+import { ObservableGroupsView } from "./ObservableGroupsView";
+import React = require("react");
 
 @observer
 export class PlaygroundView extends React.Component<{ model: Model }, {}> {
 	render() {
 		return (
-			<div className="component-playground">
+			<div className="component-PlaygroundView">
 				<div className="part-visualizer">
 					<SplitPane
 						split="vertical"
