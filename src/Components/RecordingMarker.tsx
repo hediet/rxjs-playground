@@ -1,13 +1,18 @@
 import { MutableObservableGroup } from "../Model/MutableObservableGroup";
 import { Point } from "../std/Point";
 import { SvgLine } from "../std/SvgElements";
-import { TimeOffsetConversion } from "./utils";
+import {
+	TimeOffsetConversion,
+	handleMouseDownOnTimedObj,
+	SvgContext,
+} from "./utils";
 import { PlaygroundViewModel } from "./ViewModels";
 import React = require("react");
 
 export class RecordingMarker extends React.Component<{
 	playground: PlaygroundViewModel;
 	timeOffsetConversion: TimeOffsetConversion;
+	svgContext: SvgContext;
 	x: number;
 	width: number;
 }> {
@@ -31,15 +36,14 @@ export class RecordingMarker extends React.Component<{
 			<g
 				className="component-RecordingMarker"
 				onMouseDown={e => {
-					/*if (o instanceof MutableObservableHistory) {
-				this.handleMouseDownOnTimedObj(
-					e,
-					-1,
-					t =>
-						(playground.recordingModel.startTime = t),
-					() => {}
-				);
-			}*/
+					handleMouseDownOnTimedObj(
+						e,
+						-1,
+						t => (recordingModel.startTime = t),
+						this.props.playground,
+						this.props.svgContext,
+						this.props.timeOffsetConversion
+					);
 				}}
 			>
 				<SvgLine

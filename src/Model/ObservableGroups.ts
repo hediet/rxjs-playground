@@ -64,7 +64,7 @@ export class ObservableGroups {
 }
 
 export abstract class ObservableGroup {
-	private static id = 0;
+	private static id = 1;
 
 	abstract get observables(): ReadonlyArray<ObservableHistory>;
 

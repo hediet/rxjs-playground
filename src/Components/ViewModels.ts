@@ -15,6 +15,7 @@ import {
 import { DragBehavior } from "../std/DragBehavior";
 import { TSService } from "../Model/TSService";
 import { EventTimer } from "@hediet/std/timer";
+import { MutableObservableGroup } from "../Model/MutableObservableGroup";
 
 export class PlaygroundViewModel {
 	constructor(public readonly groups: ObservableGroups) {}
@@ -33,12 +34,7 @@ export class PlaygroundViewModel {
 }
 
 export class RecordingModel {
-	private readonly timer = new EventTimer(20, "stopped");
-
 	constructor() {
-		//this.timer.onTick.sub(() => {
-
-		//});
 		this.update();
 	}
 
@@ -65,7 +61,6 @@ export class RecordingModel {
 	public stop(): void {
 		const t = this.currentRecordTime;
 		this.recordStartDateTime = undefined;
-		this.timer.stop();
 		if (t) {
 			this.startTime = t;
 		}
@@ -76,7 +71,6 @@ export class RecordingModel {
 	@action
 	public start(): void {
 		this.startTimes.push(this.startTime);
-		this.timer.startImmediate();
 		this.recordStartDateTime = new Date();
 	}
 
@@ -84,6 +78,15 @@ export class RecordingModel {
 	public resetStart(): void {
 		if (this.startTimes.length > 0) {
 			this.startTime = this.startTimes.pop()!;
+		}
+	}
+
+	@action
+	reset() {
+		this.startTime = 0;
+		this.startTimes.length = 0;
+		if (this.recordStartDateTime) {
+			this.recordStartDateTime = undefined;
 		}
 	}
 
@@ -110,6 +113,21 @@ export class RecordingModel {
 
 	@observable startTime: number = 0;
 	@observable ticksPerSecond: number = 100;
+
+	@action
+	public emitIfRecording(
+		to: MutableObservableGroup,
+		what?: { value: unknown }
+	) {
+		const t = this.currentRecordTime;
+		if (t) {
+			let value: unknown = to.history.events.length + 1;
+			if (what) {
+				value = what.value;
+			}
+			to.history.addEvent(t, value);
+		}
+	}
 }
 
 export class ObservableGroupViewModel {

@@ -2,7 +2,11 @@ import { observer } from "mobx-react";
 import { Point, point, Rectangle } from "../std/Point";
 import { SvgText, SvgLine, SvgCircle, SvgRect } from "../std/SvgElements";
 import { PositionTransformation } from "../std/DragBehavior";
-import { SvgContext, TimeOffsetConversion } from "./utils";
+import {
+	SvgContext,
+	TimeOffsetConversion,
+	handleMouseDownOnTimedObj,
+} from "./utils";
 import React = require("react");
 import { ObservableViewModel, PlaygroundViewModel } from "./ViewModels";
 import { Menu, MenuItem, ContextMenu } from "@blueprintjs/core";
@@ -13,6 +17,7 @@ import {
 	MutableObservableEvent,
 } from "../Model/MutableObservableGroup";
 import { ObservableEvent } from "../Model/ObservableGroups";
+import { formatValue } from "./formatValue";
 
 @observer
 export class ObservableView extends React.Component<{
@@ -28,40 +33,6 @@ export class ObservableView extends React.Component<{
 	@observable temporaryEventT: number | undefined = undefined;
 	@observable contextMenuT: number | undefined = undefined;
 	@observable endSelected = false;
-
-	handleMouseDownOnTimedObj(
-		e: React.MouseEvent<any, MouseEvent>,
-		data: unknown,
-		setTime: (time: number) => void,
-		end?: () => void
-	): void {
-		e.preventDefault();
-		e.stopPropagation();
-		const op = this.props.playground.timedObjDragBehavior
-			.start(
-				data,
-				new PositionTransformation(p =>
-					this.props.svgContext.mouseToSvgCoordinates(p)
-				).then(
-					p =>
-						new Point(
-							0,
-							this.props.timeOffsetConversion.getTime(p.y)
-						)
-				)
-			)
-			.endOnMouseUp();
-
-		op.onDrag.sub(data => {
-			setTime(data.position.y);
-		});
-
-		op.onEnd.sub(data => {
-			if (end) {
-				end();
-			}
-		});
-	}
 
 	render() {
 		const playground = this.props.playground;
@@ -219,10 +190,13 @@ export class ObservableView extends React.Component<{
 					stroke="black"
 					onMouseDown={e => {
 						if (evt instanceof MutableObservableEvent) {
-							this.handleMouseDownOnTimedObj(
+							handleMouseDownOnTimedObj(
 								e,
 								evt.id,
-								t => (evt.time = t)
+								t => (evt.time = t),
+								this.props.playground,
+								this.props.svgContext,
+								this.props.timeOffsetConversion
 							);
 						}
 					}}
@@ -242,7 +216,7 @@ export class ObservableView extends React.Component<{
 					textAnchor="start"
 					dominantBaseline="middle"
 				>
-					{JSON.stringify(evt.data)}
+					{formatValue(evt.data, 100)}
 				</SvgText>
 			</g>
 		);
@@ -281,10 +255,13 @@ export class ObservableView extends React.Component<{
 				onMouseDown={e => {
 					if (o instanceof MutableObservableHistory) {
 						this.endSelected = true;
-						this.handleMouseDownOnTimedObj(
+						handleMouseDownOnTimedObj(
 							e,
 							-1,
 							t => (o.endTime = t),
+							this.props.playground,
+							this.props.svgContext,
+							this.props.timeOffsetConversion,
 							() => (this.endSelected = false)
 						);
 					}

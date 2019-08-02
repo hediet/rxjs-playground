@@ -48,8 +48,9 @@ export class TimeAxis extends React.Component<{
 		}
 
 		const firstVisibleTime = getIdx(visibleRectangle.topLeft.y, "floor");
-		const lastVisibleTime = getIdx(visibleRectangle.bottomRight.y, "ceil");
-		const lastTime = getIdx(height - x - 10, "ceil");
+		const lastVisibleTime =
+			getIdx(visibleRectangle.bottomRight.y, "ceil") + 1;
+		const lastTime = getIdx(height - x - 10, "ceil") + 1;
 
 		return (
 			<g className="component-TimeAxis">

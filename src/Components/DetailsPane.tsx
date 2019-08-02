@@ -17,6 +17,7 @@ import { TSComputedObservableGroup } from "../Model/TSComputedObservableGroup";
 import { PlaygroundViewModel } from "./ViewModels";
 import { ObservableGroup } from "../Model/ObservableGroups";
 import { MonacoEditor } from "./MonacoEditor";
+import { action } from "mobx";
 
 @observer
 export class DetailsPane extends React.Component<{
@@ -79,6 +80,7 @@ export class DetailsPane extends React.Component<{
 							disabled={!selectedGroup}
 							onClick={() => {
 								selectedGroup!.reset();
+								playground.recordingModel.reset();
 							}}
 						/>
 					</ButtonGroup>
@@ -151,6 +153,16 @@ class MutableOptionsComponent extends React.Component<{
 	playground: PlaygroundViewModel;
 	group: MutableObservableGroup;
 }> {
+	@action.bound
+	private emitKey(e: React.KeyboardEvent<HTMLButtonElement>): void {
+		const r = this.props.playground.recordingModel;
+		if (e.key === " ") {
+			// space triggers the button itself
+			return;
+		}
+		r.emitIfRecording(this.props.group, { value: e.key });
+	}
+
 	render() {
 		const group = this.props.group;
 		const playground = this.props.playground;
@@ -165,19 +177,15 @@ class MutableOptionsComponent extends React.Component<{
 								children="Record"
 								active={recordingModel.isRecording}
 								onClick={() => recordingModel.toggle()}
+								onKeyDown={this.emitKey}
 							/>
 							<Button
 								icon="pulse"
 								children="Emit"
-								onClick={() => {
-									const t = recordingModel.currentRecordTime;
-									if (t) {
-										group.history.addEvent(
-											t,
-											group.history.events.length + 1
-										);
-									}
-								}}
+								onClick={() =>
+									recordingModel.emitIfRecording(group)
+								}
+								onKeyDown={this.emitKey}
 							/>
 							<Button
 								icon="step-backward"

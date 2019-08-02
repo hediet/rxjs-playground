@@ -196,19 +196,17 @@ export class ObservableGroupsView extends React.Component<{
 		this.scroll;
 		const groups = this.props.playground.groups;
 
+		const recordingModel = this.props.playground.recordingModel;
+
 		const lastTime = Math.max(
 			1,
 			groups.lastTime,
-			this.props.playground.recordingModel.currentRecordTimeOrStart
+			recordingModel.currentRecordTimeOrStart
 		);
 		const height = Math.max(
 			this.minSvgHeight,
 			this.timeOffsetConversion.getOffset(lastTime) + 30
 		);
-
-		if (this.div && this.props.playground.recordingModel.isRecording) {
-			this.div.scrollTo(0, height);
-		}
 
 		const svgRect = this.svgElement
 			? this.svgElement.getBoundingClientRect()
@@ -220,11 +218,31 @@ export class ObservableGroupsView extends React.Component<{
 		const visibleTopLeft = new Point(
 			divRect.left - svgRect.left,
 			divRect.top - svgRect.top
-		).sub({ y: 300 });
+		);
 
 		const visibleRectangle = new Rectangle(
 			visibleTopLeft,
-			visibleTopLeft.add({ x: divRect.width, y: divRect.height + 600 })
+			visibleTopLeft.add({ x: divRect.width, y: divRect.height })
+		);
+
+		if (this.div && recordingModel.isRecording) {
+			const recordMarkerY = this.timeOffsetConversion.getOffset(
+				recordingModel.getRecordTime(new Date())!
+			);
+			if (
+				recordMarkerY + 100 > visibleRectangle.bottomLeft.y ||
+				recordMarkerY < visibleRectangle.topLeft.y
+			) {
+				this.div.scrollTo(
+					0,
+					recordMarkerY - visibleRectangle.size.y + 100
+				);
+			}
+		}
+
+		const renderRectangle = new Rectangle(
+			visibleRectangle.topLeft.sub({ y: 300 }),
+			visibleRectangle.bottomRight.add({ y: 300 })
 		);
 
 		const playground = this.props.playground;
@@ -255,7 +273,7 @@ export class ObservableGroupsView extends React.Component<{
 						x={60}
 						height={height}
 						timeOffsetConversion={this.timeOffsetConversion}
-						visibleRectangle={visibleRectangle}
+						visibleRectangle={renderRectangle}
 					/>
 
 					{layout.map(({ group, x }) => (
@@ -274,6 +292,7 @@ export class ObservableGroupsView extends React.Component<{
 						x={100 - 20}
 						playground={playground}
 						timeOffsetConversion={this.timeOffsetConversion}
+						svgContext={this.svgContext}
 						width={this.width + 40}
 					/>
 				</svg>
