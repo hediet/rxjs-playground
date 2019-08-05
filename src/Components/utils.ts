@@ -1,5 +1,5 @@
 import { Point } from "../std/Point";
-import { PlaygroundViewModel } from "./ViewModels";
+import { PlaygroundViewModel } from "../ViewModels/PlaygroundViewModel";
 import { PositionTransformation } from "../std/DragBehavior";
 
 export interface SvgContext {

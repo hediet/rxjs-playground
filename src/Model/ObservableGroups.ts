@@ -1,4 +1,4 @@
-import { observable } from "mobx";
+import { observable, action } from "mobx";
 import { from, identity, NEVER, Observable, of, SchedulerLike } from "rxjs";
 import { concat, delay, flatMap, map, takeUntil } from "rxjs/operators";
 
@@ -61,7 +61,23 @@ export class ObservableGroups {
 		}
 		return r.asObservable<T>(scheduler);
 	}
+
+	public serialize(): SerializedObservable[] {
+		const v = [...this.groups.values()];
+		v.sort((a, b) => a.position - b.position);
+		return v.map(g => g.serialize());
+	}
+
+	@action
+	public clear() {
+		this._groups.clear();
+	}
 }
+
+export type SerializedObservable<T = {}> = {
+	name: string;
+	type: "comp" | "mut";
+} & T;
 
 export abstract class ObservableGroup {
 	private static id = 1;
@@ -94,6 +110,8 @@ export abstract class ObservableGroup {
 		}
 		return last;
 	}
+
+	public abstract serialize(): SerializedObservable;
 
 	public get resultingObservableHistory(): ObservableHistory | undefined {
 		return this.observables[this.observables.length - 1];

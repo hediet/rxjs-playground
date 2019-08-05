@@ -8,7 +8,11 @@ import {
 	handleMouseDownOnTimedObj,
 } from "./utils";
 import React = require("react");
-import { ObservableViewModel, PlaygroundViewModel } from "./ViewModels";
+import { PlaygroundViewModel } from "../ViewModels/PlaygroundViewModel";
+import {
+	ObservableViewModel,
+	ChildObservableViewModel,
+} from "../ViewModels/ObservableViewModel";
 import { Menu, MenuItem, ContextMenu } from "@blueprintjs/core";
 import classNames = require("classnames");
 import { observable } from "mobx";
@@ -37,6 +41,7 @@ export class ObservableView extends React.Component<{
 	render() {
 		const playground = this.props.playground;
 		const o = this.props.observable.observable;
+		const m = this.props.observable;
 		const timeOffsetConversion = this.props.timeOffsetConversion;
 		const x = this.props.x;
 
@@ -115,7 +120,7 @@ export class ObservableView extends React.Component<{
 
 				{this.renderEnd({ center: end })}
 
-				{o.events.map((evt, idx) => {
+				{m.events.map((evt, idx) => {
 					return this.renderEvent(evt, playground, idx);
 				})}
 			</g>
@@ -170,6 +175,26 @@ export class ObservableView extends React.Component<{
 		const isLarge =
 			playground.timedObjDragBehavior.isDataEqualTo(evt.id) ||
 			this.selectedEventId === evt.id;
+
+		if (evt.data instanceof ChildObservableViewModel) {
+			return (
+				<g key={evt.id} className="part-sub-observable">
+					<SvgLine
+						className="part-connection-line"
+						start={center}
+						end={center.add({ x: evt.data.xOffset })}
+					/>
+					<ObservableView
+						height={this.props.height}
+						observable={evt.data}
+						playground={this.props.playground}
+						svgContext={this.props.svgContext}
+						timeOffsetConversion={this.props.timeOffsetConversion}
+						x={this.props.x + evt.data.xOffset}
+					/>
+				</g>
+			);
+		}
 
 		return (
 			<g key={evt.id} className="part-event">

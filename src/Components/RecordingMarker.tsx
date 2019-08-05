@@ -6,7 +6,7 @@ import {
 	handleMouseDownOnTimedObj,
 	SvgContext,
 } from "./utils";
-import { PlaygroundViewModel } from "./ViewModels";
+import { PlaygroundViewModel } from "../ViewModels/PlaygroundViewModel";
 import React = require("react");
 
 export class RecordingMarker extends React.Component<{

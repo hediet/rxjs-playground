@@ -14,7 +14,7 @@ import {
 import { MutableObservableGroup } from "../Model/MutableObservableGroup";
 import React = require("react");
 import { TSComputedObservableGroup } from "../Model/TSComputedObservableGroup";
-import { PlaygroundViewModel } from "./ViewModels";
+import { PlaygroundViewModel } from "../ViewModels/PlaygroundViewModel";
 import { ObservableGroup } from "../Model/ObservableGroups";
 import { MonacoEditor } from "./MonacoEditor";
 import { action } from "mobx";
@@ -80,7 +80,7 @@ export class DetailsPane extends React.Component<{
 							disabled={!selectedGroup}
 							onClick={() => {
 								selectedGroup!.reset();
-								playground.recordingModel.reset();
+								playground.recordingModel.resetStart();
 							}}
 						/>
 					</ButtonGroup>
@@ -160,6 +160,7 @@ class MutableOptionsComponent extends React.Component<{
 			// space triggers the button itself
 			return;
 		}
+
 		r.emitIfRecording(this.props.group, { value: e.key });
 	}
 
@@ -182,8 +183,25 @@ class MutableOptionsComponent extends React.Component<{
 							<Button
 								icon="pulse"
 								children="Emit"
+								disabled={!recordingModel.isRecording}
 								onClick={() =>
 									recordingModel.emitIfRecording(group)
+								}
+								onKeyDown={this.emitKey}
+							/>
+							<Button
+								icon="pulse"
+								children="Emit Edges"
+								disabled={!recordingModel.isRecording}
+								onMouseDown={() =>
+									recordingModel.emitIfRecording(group, {
+										value: { pressed: true },
+									})
+								}
+								onMouseUp={() =>
+									recordingModel.emitIfRecording(group, {
+										value: { pressed: false },
+									})
 								}
 								onKeyDown={this.emitKey}
 							/>

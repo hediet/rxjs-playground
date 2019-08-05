@@ -60,6 +60,13 @@ body,
 		box-sizing: border-box;
 		display: block;
 
+		.part-sub-observable {
+			.part-connection-line {
+				stroke: black;
+				stroke-dasharray: 2;
+			}
+		}
+
 		.part-event {
 			circle {
 				transition: 0.4s cy;
@@ -179,6 +186,7 @@ body,
 		align-items: flex-start;
 		padding-top: 3px;
 		padding-bottom: 0px;
+		flex-wrap: wrap;
 	}
 
 	.part-config {
@@ -204,6 +212,7 @@ body,
 			display: flex;
 			align-content: center;
 			align-items: flex-start;
+			flex-wrap: wrap;
 			padding-top: 3px;
 			padding-bottom: 8px;
 

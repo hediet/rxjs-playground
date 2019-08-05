@@ -2,12 +2,24 @@ import {
 	ObservableGroup,
 	ObservableHistory,
 	ObservableEvent,
+	SerializedObservable,
 } from "./ObservableGroups";
 import { observable, action, computed, autorun, runInAction } from "mobx";
 import { sortByNumericKey } from "../std/utils";
 import * as monaco from "monaco-editor";
 import { Subject } from "rxjs";
 import { debounceTime } from "rxjs/operators";
+
+interface Data {
+	id: number;
+	time: number;
+	data: unknown;
+}
+
+type MutableObservableData = SerializedObservable<{
+	data: Data[];
+	end?: number;
+}>;
 
 export class MutableObservableGroup extends ObservableGroup {
 	public readonly history = new MutableObservableHistory(this);
@@ -17,18 +29,42 @@ export class MutableObservableGroup extends ObservableGroup {
 		`file:///mutableObservableGroup${this.id}.json`
 	);
 	public readonly model = monaco.editor.createModel(
-		this.getAsJson(),
+		this.getJson(),
 		"json",
 		this.mainUri
 	);
 
-	private getAsJson(): string {
+	public serialize(): MutableObservableData {
+		return {
+			type: "mut",
+			data: this.data,
+			name: this.name,
+			end: this.history.endTime,
+		};
+	}
+
+	@action
+	private setData(data: Data[]) {
+		this.history.clear();
+		for (const item of data) {
+			this.history.addEvent(item.time, item.data, item.id);
+		}
+	}
+
+	@computed
+	private get data(): Data[] {
 		const data = this.history.events.map(e => ({
 			id: e.id,
 			time: e.time,
 			data: e.data,
 		}));
+		return data;
+	}
 
+	private getJson(): string {
+		const data = this.data;
+		// we manually do a json serialize
+		// to get a more suitable formatting
 		let result = `[\n`;
 		let i = 0;
 		for (const event of data) {
@@ -45,17 +81,8 @@ export class MutableObservableGroup extends ObservableGroup {
 
 	private setJson(json: string) {
 		try {
-			const result = JSON.parse(json) as {
-				id: number;
-				time: number;
-				data: unknown;
-			}[];
-			runInAction("Update history", () => {
-				this.history.clear();
-				for (const item of result) {
-					this.history.addEvent(item.time, item.data, item.id);
-				}
-			});
+			const result = JSON.parse(json) as Data[];
+			this.setData(result);
 		} catch (e) {
 			console.error(e);
 		}
@@ -63,12 +90,18 @@ export class MutableObservableGroup extends ObservableGroup {
 
 	private debounceSubject = new Subject<string>();
 
-	constructor() {
+	constructor(data?: MutableObservableData) {
 		super();
+
+		if (data) {
+			this.setData(data.data);
+			this.name = data.name;
+			this.history.endTime = data.end;
+		}
 
 		let updating = false;
 		autorun(() => {
-			const json = this.getAsJson();
+			const json = this.getJson();
 			if (!updating) {
 				this.debounceSubject.next(json);
 			}

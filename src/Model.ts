@@ -1,20 +1,7 @@
-import { PlaygroundViewModel } from "./Components/ViewModels";
-import { ObservableGroups } from "./Model/ObservableGroups";
-import { MutableObservableGroup } from "./Model/MutableObservableGroup";
-import { TSComputedObservableGroup } from "./Model/TSComputedObservableGroup";
+import { PlaygroundViewModel } from "./ViewModels/PlaygroundViewModel";
 
 export class Model {
-	public readonly playground = new PlaygroundViewModel(
-		new ObservableGroups()
-	);
+	public readonly playground = new PlaygroundViewModel();
 
-	constructor() {
-		this.playground.groups.addGroup(new MutableObservableGroup());
-		this.playground.groups.addGroup(
-			new TSComputedObservableGroup(
-				this.playground.typeScriptService,
-				this.playground.groups
-			)
-		);
-	}
+	constructor() {}
 }

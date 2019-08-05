@@ -2,7 +2,7 @@ import { TrackingObservableGroupBase } from "./Tracking";
 import { SchedulerLike, Observable } from "rxjs";
 import { observable, computed, autorun, action } from "mobx";
 import { ObservableComputer, Observables, TrackFn } from "./types";
-import { ObservableGroups } from "./ObservableGroups";
+import { ObservableGroups, SerializedObservable } from "./ObservableGroups";
 import * as ts from "typescript";
 import { TsModel, TSService } from "./TSService";
 
@@ -11,30 +11,49 @@ import * as op from "rxjs/operators";
 import { visualize } from "@hediet/rxjs-visualizer";
 
 visualize((observables, scheduler, track) => {
-	return rx
-		.from([1, 2, 3])
-		.pipe(
-			op.delayWhen<number>(v =>
-				rx.interval(v * 10, scheduler)
-			)
-		);
+	return observables.obs1.pipe(
+		op.groupBy(v => (v as any) % 3),
+		op.map(v => v.pipe(op.take(2)))
+	);
 });
 `;
 
 export class TSComputedObservableGroup extends TrackingObservableGroupBase {
+	@observable src: string = "";
+
+	public serialize(): SerializedObservable<{ src: string }> {
+		return {
+			type: "comp",
+			src: this.src,
+			name: this.name,
+		};
+	}
+
 	public readonly model: TsModel;
 
-	constructor(tsService: TSService, groups: ObservableGroups) {
+	constructor(
+		tsService: TSService,
+		groups: ObservableGroups,
+		data?: SerializedObservable<{ src: string }>
+	) {
 		super(groups);
 
-		this.model = tsService.createTypeScriptModel(initialProgram);
+		this.src = initialProgram;
+		if (data) {
+			this.src = data.src;
+			this.name = data.name;
+		}
+		this.model = tsService.createTypeScriptModel(this.src);
 
 		autorun(() => {
 			this.model.registerSpecificTypes([
 				...this.visibleObservables.keys(),
 			]);
 		});
-		this.model.textModel.onDidChangeContent(() => this.compile());
+		this.model.textModel.onDidChangeContent(() => {
+			this.src = this.model.textModel.getValue();
+			this.compile();
+		});
 
 		// don't use monaco to compile for the first time to speed things up
 		this.transpiledJs = ts.transpile(this.model.textModel.getValue());

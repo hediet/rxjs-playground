@@ -4,7 +4,8 @@ import { Point, Rectangle } from "../std/Point";
 import { SvgRect, SvgText } from "../std/SvgElements";
 import { ObservableView } from "./ObservableView";
 import { SvgContext, TimeOffsetConversion } from "./utils";
-import { ObservableGroupViewModel, PlaygroundViewModel } from "./ViewModels";
+import { PlaygroundViewModel } from "../ViewModels/PlaygroundViewModel";
+import { ObservableGroupViewModel } from "../ViewModels/ObservableGroupViewModel";
 import React = require("react");
 import classnames = require("classnames");
 

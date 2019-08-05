@@ -4,6 +4,7 @@ import {
 	SchedulerLike,
 	Observable,
 	defer,
+	isObservable,
 } from "rxjs";
 import {
 	ObservableGroup,
@@ -61,24 +62,44 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 			return <T>(source: Observable<T>) => {
 				return defer(() => {
 					const history = new TrackingObservableHistory(n);
-
 					observableHistories.unshift(history);
-					history.startTime = scheduler.now();
-					return source.pipe(
-						tap({
-							next: n => {
-								history.trackedEvents.push(
-									new TrackingEvent(scheduler.now(), n)
-								);
-							},
-							complete: () => {
-								history.endTime = scheduler.now();
-							},
-						})
-					);
+					return this.track<T>(source, scheduler, history);
 				});
 			};
 		};
+	}
+
+	private track<T>(
+		source: Observable<T>,
+		scheduler: SchedulerLike,
+		history: TrackingObservableHistory
+	): Observable<T> {
+		history.startTime = scheduler.now();
+		return source.pipe(
+			tap({
+				next: n => {
+					let data: unknown = n;
+					if (isObservable(n)) {
+						/*if ("key" in n) {
+							data = { key: (n as any).key };
+						}*/
+
+						const h = new TrackingObservableHistory(() => "test");
+						n.pipe(source =>
+							this.track(source, scheduler, h)
+						).subscribe();
+						data = h;
+					}
+
+					history.trackedEvents.push(
+						new TrackingEvent(scheduler.now(), data)
+					);
+				},
+				complete: () => {
+					history.endTime = scheduler.now();
+				},
+			})
+		);
 	}
 
 	private getVisibleObservables(

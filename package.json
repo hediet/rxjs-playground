@@ -13,6 +13,7 @@
 		"@types/webpack": "^4.4.33",
 		"blueprintjs": "^0.0.8",
 		"classnames": "^2.2.6",
+		"json-url": "^2.4.2",
 		"mobx": "^5.10.1",
 		"mobx-react": "^6.1.1",
 		"monaco-editor": "^0.17.1",
