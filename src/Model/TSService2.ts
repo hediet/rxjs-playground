@@ -1,7 +1,7 @@
 import * as monaco from "monaco-editor";
 import { LanguageService } from "typescript";
 
-export class TSService {
+export class TSService2 {
 	private modelId = 0;
 
 	constructor() {

@@ -22,7 +22,7 @@ import {
 import { MutableObservableGroup } from "./Model/MutableObservableGroup";
 import { ObservableGroup, ObservableGroups } from "./Model/ObservableGroups";
 import { TrackingObservableGroup } from "./Model/Tracking";
-import { TSComputedObservableGroup } from "./Model/TSComputedObservableGroup";
+import { TSComputedObservableGroup2 } from "./Model/TSComputedObservableGroup2";
 import { ObservableComputer } from "./Model/types";
 
 function mergeFilter<T>(

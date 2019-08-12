@@ -13,7 +13,7 @@ import {
 } from "@blueprintjs/core";
 import { MutableObservableGroup } from "../Model/MutableObservableGroup";
 import React = require("react");
-import { TSComputedObservableGroup } from "../Model/TSComputedObservableGroup";
+import { TSComputedObservableGroup2 } from "../Model/TSComputedObservableGroup2";
 import { PlaygroundViewModel } from "../ViewModels/PlaygroundViewModel";
 import { ObservableGroup } from "../Model/ObservableGroups";
 import { MonacoEditor } from "./MonacoEditor";
@@ -49,7 +49,7 @@ export class DetailsPane extends React.Component<{
 										text="Computed Observable"
 										onClick={() =>
 											playground.groups.addGroup(
-												new TSComputedObservableGroup(
+												new TSComputedObservableGroup2(
 													playground.typeScriptService,
 													playground.groups
 												)
@@ -129,7 +129,7 @@ export class ConfigComponent extends React.Component<{
 		const group = this.props.selectedGroup;
 		return (
 			<div className="component-config">
-				{group instanceof TSComputedObservableGroup && (
+				{group instanceof TSComputedObservableGroup2 && (
 					<div className="part-editor">
 						<MonacoEditor
 							key={group.id}
@@ -177,7 +177,7 @@ class MutableOptionsComponent extends React.Component<{
 								icon="record"
 								children="Record"
 								active={recordingModel.isRecording}
-								onClick={() => recordingModel.toggle()}
+								onClick={() => recordingModel.toggleRecording()}
 								onKeyDown={this.emitKey}
 							/>
 							<Button

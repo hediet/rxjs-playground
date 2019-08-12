@@ -4,7 +4,7 @@ import { observable, computed, autorun, action } from "mobx";
 import { ObservableComputer, Observables, TrackFn } from "./types";
 import { ObservableGroups, SerializedObservable } from "./ObservableGroups";
 import * as ts from "typescript";
-import { TsModel, TSService } from "./TSService";
+import { TsModel, TSService2 } from "./TSService2";
 
 const initialProgram = `import * as rx from "rxjs";
 import * as op from "rxjs/operators";
@@ -18,7 +18,7 @@ visualize((observables, scheduler, track) => {
 });
 `;
 
-export class TSComputedObservableGroup extends TrackingObservableGroupBase {
+export class TSComputedObservableGroup2 extends TrackingObservableGroupBase {
 	@observable src: string = "";
 
 	public serialize(): SerializedObservable<{ src: string }> {
@@ -32,7 +32,7 @@ export class TSComputedObservableGroup extends TrackingObservableGroupBase {
 	public readonly model: TsModel;
 
 	constructor(
-		tsService: TSService,
+		tsService: TSService2,
 		groups: ObservableGroups,
 		data?: SerializedObservable<{ src: string }>
 	) {

@@ -52,12 +52,6 @@ export class RecordingMarker extends React.Component<{
 					end={new Point(this.props.x + this.props.width, recordingY)}
 					stroke="black"
 				/>
-				{/*<SvgLine
-			className="nonVisualMarker"
-			start={start.add({ x: -15, y: recordingY })}
-			end={start.add({ x: 15, y: recordingY })}
-			stroke="transparent"
-		/>*/}
 			</g>
 		);
 	}

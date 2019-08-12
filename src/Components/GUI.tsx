@@ -9,7 +9,7 @@ export class GUI extends React.Component<{ model: Model }, {}> {
 		return (
 			<div className="gui">
 				<h1 className="header">Rxjs Visualizer</h1>
-				<PlaygroundView model={this.props.model} />
+				<PlaygroundView playground={this.props.model.playground} />
 			</div>
 		);
 	}

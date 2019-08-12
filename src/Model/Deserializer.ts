@@ -1,16 +1,16 @@
-import { TSService } from "./TSService";
+import { TSService2 } from "./TSService2";
 import {
 	SerializedObservable,
 	ObservableGroup,
 	ObservableGroups,
 } from "./ObservableGroups";
-import { TSComputedObservableGroup } from "./TSComputedObservableGroup";
+import { TSComputedObservableGroup2 } from "./TSComputedObservableGroup2";
 import { MutableObservableGroup } from "./MutableObservableGroup";
 import { runInAction } from "mobx";
 
 export function deserialize(
 	groups: ObservableGroups,
-	tsService: TSService,
+	tsService: TSService2,
 	serialized: SerializedObservable[]
 ) {
 	runInAction("Deserialize", () => {
@@ -18,7 +18,7 @@ export function deserialize(
 		for (const s of serialized) {
 			let o: ObservableGroup;
 			if (s.type === "comp") {
-				o = new TSComputedObservableGroup(tsService, groups, s as any);
+				o = new TSComputedObservableGroup2(tsService, groups, s as any);
 			} else {
 				o = new MutableObservableGroup(s as any);
 			}

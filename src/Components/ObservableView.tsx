@@ -1,7 +1,6 @@
 import { observer } from "mobx-react";
 import { Point, point, Rectangle } from "../std/Point";
 import { SvgText, SvgLine, SvgCircle, SvgRect } from "../std/SvgElements";
-import { PositionTransformation } from "../std/DragBehavior";
 import {
 	SvgContext,
 	TimeOffsetConversion,

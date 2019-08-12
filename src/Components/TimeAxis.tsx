@@ -15,7 +15,7 @@ export class TimeAxis extends React.Component<{
 }> {
 	@computed get axisDT(): number {
 		const { timeOffsetConversion } = this.props;
-		const factor = timeOffsetConversion.offsetPerTime; //getOffset(1) - timeOffsetConversion.getOffset(0);
+		const factor = timeOffsetConversion.offsetPerTime;
 		const axisDYRange = [35, 60];
 		const axisDTRange = [axisDYRange[0] / factor, axisDYRange[1] / factor];
 

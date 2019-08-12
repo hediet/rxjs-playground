@@ -2,27 +2,57 @@ import { observable, action, runInAction } from "mobx";
 import { MutableObservableGroup } from "../Model/MutableObservableGroup";
 
 export class RecordingModel {
-	constructor() {
-		this.update();
+	@observable currentDate: Date = new Date();
+	private startTimes = new Array<number>();
+	@observable startTime: number = 0;
+	@observable ticksPerSecond: number = 100;
+	@observable recordStartDateTime: Date | undefined = undefined;
+
+	public get isRecording(): boolean {
+		return !!this.recordStartDateTime;
 	}
 
-	private update() {
+	public getRecordTime(date: Date): number | undefined {
+		if (!this.recordStartDateTime) {
+			return undefined;
+		}
+		const msDiff = date.getTime() - this.recordStartDateTime.getTime();
+		return this.startTime + (msDiff * this.ticksPerSecond) / 1000;
+	}
+
+	public get currentRecordTime(): number | undefined {
+		return this.getRecordTime(this.currentDate);
+	}
+
+	public get currentRecordTimeOrStart(): number {
+		return this.currentRecordTime || this.startTime;
+	}
+
+	constructor() {
+		this.updateCurrentDateLoop();
+	}
+
+	private updateCurrentDateLoop() {
 		requestAnimationFrame(() => {
 			runInAction("Update time", () => {
 				this.currentDate = new Date();
 			});
-			this.update();
+			this.updateCurrentDateLoop();
 		});
 	}
 
-	@observable currentDate: Date = new Date();
-
-	@action toggle(): void {
+	@action public toggleRecording(): void {
 		if (this.isRecording) {
 			this.stop();
 		} else {
 			this.start();
 		}
+	}
+
+	@action
+	public start(): void {
+		this.startTimes.push(this.startTime);
+		this.recordStartDateTime = new Date();
 	}
 
 	@action
@@ -34,14 +64,6 @@ export class RecordingModel {
 		}
 	}
 
-	private startTimes = new Array<number>();
-
-	@action
-	public start(): void {
-		this.startTimes.push(this.startTime);
-		this.recordStartDateTime = new Date();
-	}
-
 	@action
 	public resetStart(): void {
 		if (this.startTimes.length > 0) {
@@ -50,37 +72,13 @@ export class RecordingModel {
 	}
 
 	@action
-	reset() {
+	public reset() {
 		this.startTime = 0;
 		this.startTimes.length = 0;
 		if (this.recordStartDateTime) {
 			this.recordStartDateTime = undefined;
 		}
 	}
-
-	public get isRecording(): boolean {
-		return !!this.recordStartDateTime;
-	}
-
-	@observable recordStartDateTime: Date | undefined = undefined;
-	getRecordTime(date: Date): number | undefined {
-		if (!this.recordStartDateTime) {
-			return undefined;
-		}
-		const msDiff = date.getTime() - this.recordStartDateTime.getTime();
-		return this.startTime + (msDiff * this.ticksPerSecond) / 1000;
-	}
-
-	get currentRecordTime(): number | undefined {
-		return this.getRecordTime(this.currentDate);
-	}
-
-	get currentRecordTimeOrStart(): number {
-		return this.currentRecordTime || this.startTime;
-	}
-
-	@observable startTime: number = 0;
-	@observable ticksPerSecond: number = 100;
 
 	@action
 	public emitIfRecording(

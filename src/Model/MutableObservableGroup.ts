@@ -188,7 +188,7 @@ export class MutableObservableEvent implements ObservableEvent {
 	constructor(time: number, data: unknown, id?: number) {
 		this.time = time;
 		this.data = data;
-		if (id) {
+		if (id !== undefined) {
 			this.id = id;
 		}
 	}
