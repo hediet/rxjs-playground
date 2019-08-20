@@ -17,6 +17,7 @@ function omit<T, K extends keyof T>(obj: T, keys: K[]): Omit<T, K> {
 
 export interface SvgAttributes<T> extends React.DOMAttributes<T> {
 	stroke?: string;
+	fill?: string;
 	className?: string;
 	style?: Properties;
 	pointerEvents?: "none" | "auto" | "initial";

@@ -1,4 +1,4 @@
-import { observable, computed, autorun } from "mobx";
+import { observable } from "mobx";
 import { EventEmitter } from "@hediet/std/events";
 import { Point, PointLike } from "./Point";
 import { Disposable } from "@hediet/std/disposable";

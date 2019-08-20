@@ -2,7 +2,7 @@ import { observable } from "mobx";
 
 import { ObservableGroup, ObservableGroups } from "../Model/ObservableGroups";
 import { DragBehavior } from "../std/DragBehavior";
-import { TSService2 } from "../Model/TSService2";
+import { TsService } from "../Model/TsService";
 import { RecordingModel } from "./RecordingModel";
 import { ObservableGroupViewModel } from "./ObservableGroupViewModel";
 
@@ -15,7 +15,7 @@ export class PlaygroundViewModel {
 
 	public readonly timedObjDragBehavior = new DragBehavior();
 
-	public readonly typeScriptService = new TSService2();
+	public readonly typeScriptService = new TsService();
 
 	@observable selectedGroup: ObservableGroup | undefined = undefined;
 

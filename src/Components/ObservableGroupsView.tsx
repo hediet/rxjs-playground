@@ -23,6 +23,9 @@ export class ObservableGroupsView extends React.Component<{
 	private readonly _updateGroupViewModelsReaction = reaction(
 		() => [...this.props.playground.groups.groups],
 		groups => {
+			for (const g of this.groups) {
+				g.dispose();
+			}
 			this.groups = groups.map(
 				g =>
 					this.groups.find(w => w.group === g) ||
@@ -31,6 +34,12 @@ export class ObservableGroupsView extends React.Component<{
 		},
 		{ fireImmediately: true }
 	);
+
+	public componentWillUnmount() {
+		for (const g of this.groups) {
+			g.dispose();
+		}
+	}
 
 	@disposeOnUnmount
 	private readonly _setGroupOrderAfterDragging = autorun(() => {
@@ -161,10 +170,13 @@ export class ObservableGroupsView extends React.Component<{
 		});
 
 	@disposeOnUnmount
-	r = autorun(() => {
-		this.getTimeOffsetConversion(); // trigger dependencies
-		this.debounceSubject.next();
-	});
+	r = autorun(
+		() => {
+			this.getTimeOffsetConversion(); // trigger dependencies
+			this.debounceSubject.next();
+		},
+		{ name: "Update scaling" }
+	);
 
 	private div: HTMLDivElement | undefined = undefined;
 	@observable private minSvgHeight: number = 0;

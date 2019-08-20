@@ -1,10 +1,15 @@
-import { computed, ObservableMap } from "mobx";
+import { computed, ObservableMap, observable } from "mobx";
 import { ObservableHistory, ObservableEvent } from "../Model/ObservableGroups";
 
 export class ObservableViewModel {
 	get margin(): number {
 		return 40;
 	}
+
+	@observable selectedEventId: number = -1;
+	@observable temporaryEventT: number | undefined = undefined;
+	@observable contextMenuT: number | undefined = undefined;
+	@observable endSelected = false;
 
 	@computed get width() {
 		const margin = this.margin;

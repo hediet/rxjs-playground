@@ -100,12 +100,15 @@ export class MutableObservableGroup extends ObservableGroup {
 		}
 
 		let updating = false;
-		autorun(() => {
-			const json = this.getJson();
-			if (!updating) {
-				this.debounceSubject.next(json);
-			}
-		});
+		autorun(
+			() => {
+				const json = this.getJson();
+				if (!updating) {
+					this.debounceSubject.next(json);
+				}
+			},
+			{ name: "Update events JSON" }
+		);
 
 		this.debounceSubject.pipe(debounceTime(100)).forEach(json => {
 			if (!updating) {
@@ -178,18 +181,16 @@ export class MutableObservableHistory<T> extends ObservableHistory {
 	}
 }
 
-let globalId = 0;
-
 export class MutableObservableEvent implements ObservableEvent {
+	private static id = 0;
+	public readonly id: number;
+
 	@observable public time: number;
 	@observable public data: unknown;
-	public readonly id = globalId++;
 
 	constructor(time: number, data: unknown, id?: number) {
 		this.time = time;
 		this.data = data;
-		if (id !== undefined) {
-			this.id = id;
-		}
+		this.id = id !== undefined ? id : MutableObservableEvent.id++;
 	}
 }

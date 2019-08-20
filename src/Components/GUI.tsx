@@ -8,7 +8,6 @@ export class GUI extends React.Component<{ model: Model }, {}> {
 	render() {
 		return (
 			<div className="gui">
-				<h1 className="header">Rxjs Visualizer</h1>
 				<PlaygroundView playground={this.props.model.playground} />
 			</div>
 		);

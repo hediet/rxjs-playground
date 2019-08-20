@@ -14,7 +14,6 @@ import {
 } from "../ViewModels/ObservableViewModel";
 import { Menu, MenuItem, ContextMenu } from "@blueprintjs/core";
 import classNames = require("classnames");
-import { observable } from "mobx";
 import {
 	MutableObservableHistory,
 	MutableObservableEvent,
@@ -31,12 +30,6 @@ export class ObservableView extends React.Component<{
 	playground: PlaygroundViewModel;
 	svgContext: SvgContext;
 }> {
-	@observable private selectedEventId: number = -1;
-
-	@observable temporaryEventT: number | undefined = undefined;
-	@observable contextMenuT: number | undefined = undefined;
-	@observable endSelected = false;
-
 	render() {
 		const playground = this.props.playground;
 		const o = this.props.observable.observable;
@@ -75,16 +68,16 @@ export class ObservableView extends React.Component<{
 						);
 
 						if (o instanceof MutableObservableHistory) {
-							this.temporaryEventT = timeOffsetConversion.getTime(
+							m.temporaryEventT = timeOffsetConversion.getTime(
 								p.y
 							);
 						}
 					}}
 					onMouseLeave={() => {
-						this.temporaryEventT = undefined;
+						m.temporaryEventT = undefined;
 					}}
 					onClick={e => {
-						const t = this.temporaryEventT;
+						const t = m.temporaryEventT;
 						if (
 							o instanceof MutableObservableHistory &&
 							t !== undefined
@@ -94,7 +87,7 @@ export class ObservableView extends React.Component<{
 						}
 					}}
 					onContextMenu={e => {
-						const t = this.temporaryEventT;
+						const t = m.temporaryEventT;
 						if (
 							o instanceof MutableObservableHistory &&
 							t !== undefined
@@ -104,13 +97,13 @@ export class ObservableView extends React.Component<{
 						}
 					}}
 				/>
-				{(this.temporaryEventT || this.contextMenuT) && (
+				{(m.temporaryEventT || m.contextMenuT) && (
 					<SvgCircle
 						className="part-event-temporary"
 						center={point({
 							x,
 							y: timeOffsetConversion.getOffset(
-								this.temporaryEventT || this.contextMenuT!
+								m.temporaryEventT || m.contextMenuT!
 							),
 						})}
 						radius={4}
@@ -119,9 +112,19 @@ export class ObservableView extends React.Component<{
 
 				{this.renderEnd({ center: end })}
 
-				{m.events.map((evt, idx) => {
-					return this.renderEvent(evt, playground, idx);
-				})}
+				{m.events.map((evt, idx) => (
+					<ObservableEventView
+						evt={evt}
+						playground={playground}
+						idx={idx}
+						height={this.props.height}
+						x={x}
+						key={idx}
+						observable={m}
+						svgContext={this.props.svgContext}
+						timeOffsetConversion={timeOffsetConversion}
+					/>
+				))}
 			</g>
 		);
 	}
@@ -131,7 +134,7 @@ export class ObservableView extends React.Component<{
 		t: number,
 		e: React.MouseEvent<SVGRectElement, MouseEvent>
 	) {
-		this.contextMenuT = t;
+		this.props.observable.contextMenuT = t;
 		ContextMenu.show(
 			<Menu>
 				<MenuItem
@@ -154,131 +157,26 @@ export class ObservableView extends React.Component<{
 			</Menu>,
 			{ left: e.clientX, top: e.clientY },
 			() => {
-				this.contextMenuT = undefined;
-				this.selectedEventId = -1;
-			}
-		);
-	}
-
-	private renderEvent(
-		evt: ObservableEvent,
-		playground: PlaygroundViewModel,
-		idx: number
-	): JSX.Element {
-		const center = point({
-			x: this.props.x,
-			y: this.props.timeOffsetConversion.getOffset(evt.time),
-		});
-		const o = this.props.observable.observable;
-
-		const isLarge =
-			playground.timedObjDragBehavior.isDataEqualTo(evt.id) ||
-			this.selectedEventId === evt.id;
-
-		if (evt.data instanceof ChildObservableViewModel) {
-			return (
-				<g key={evt.id} className="part-sub-observable">
-					<SvgLine
-						className="part-connection-line"
-						start={center}
-						end={center.add({ x: evt.data.xOffset })}
-					/>
-					<ObservableView
-						height={this.props.height}
-						observable={evt.data}
-						playground={this.props.playground}
-						svgContext={this.props.svgContext}
-						timeOffsetConversion={this.props.timeOffsetConversion}
-						x={this.props.x + evt.data.xOffset}
-					/>
-				</g>
-			);
-		}
-
-		return (
-			<g key={evt.id} className="part-event">
-				<SvgCircle
-					className={classNames(
-						o instanceof MutableObservableHistory && "mutable",
-						isLarge && "large"
-					)}
-					onContextMenu={e => {
-						if (o instanceof MutableObservableHistory) {
-							e.preventDefault();
-							this.selectedEventId = evt.id;
-							this.showEventContextMenu(o, evt, e);
-						}
-					}}
-					center={center}
-					radius={4}
-					stroke="black"
-					onMouseDown={e => {
-						if (evt instanceof MutableObservableEvent) {
-							handleMouseDownOnTimedObj(
-								e,
-								evt.id,
-								t => (evt.time = t),
-								this.props.playground,
-								this.props.svgContext,
-								this.props.timeOffsetConversion
-							);
-						}
-					}}
-				/>
-				<SvgText
-					childRef={text => {
-						if (!text) {
-							//this.widths.delete(idx);
-						} else {
-							this.props.observable.textWidths.set(
-								idx,
-								text.getBBox().width
-							);
-						}
-					}}
-					position={center.add(new Point(10, 0))}
-					textAnchor="start"
-					dominantBaseline="middle"
-				>
-					{formatValue(evt.data, 100)}
-				</SvgText>
-			</g>
-		);
-	}
-
-	private showEventContextMenu(
-		o: MutableObservableHistory<any>,
-		evt: ObservableEvent,
-		e: React.MouseEvent<SVGCircleElement, MouseEvent>
-	) {
-		ContextMenu.show(
-			<Menu>
-				<MenuItem
-					text="Delete"
-					icon="delete"
-					onClick={() => o.removeEvent(evt)}
-				/>
-			</Menu>,
-			{ left: e.clientX, top: e.clientY },
-			() => {
-				this.selectedEventId = -1;
+				this.props.observable.contextMenuT = undefined;
+				this.props.observable.selectedEventId = -1;
 			}
 		);
 	}
 
 	private renderEnd({ center }: { center: Point }) {
-		const o = this.props.observable.observable;
+		const vm = this.props.observable;
+		const o = vm.observable;
 
 		return (
 			<g
 				className={classNames(
 					"part-end",
 					o instanceof MutableObservableHistory && "mutable",
-					this.endSelected && "selected"
+					vm.endSelected && "selected"
 				)}
 				onMouseDown={e => {
 					if (o instanceof MutableObservableHistory) {
-						this.endSelected = true;
+						vm.endSelected = true;
 						handleMouseDownOnTimedObj(
 							e,
 							-1,
@@ -286,14 +184,14 @@ export class ObservableView extends React.Component<{
 							this.props.playground,
 							this.props.svgContext,
 							this.props.timeOffsetConversion,
-							() => (this.endSelected = false)
+							() => (vm.endSelected = false)
 						);
 					}
 				}}
 				onContextMenu={e => {
 					if (o instanceof MutableObservableHistory) {
 						e.preventDefault();
-						this.endSelected = true;
+						vm.endSelected = true;
 						ContextMenu.show(
 							<Menu>
 								<MenuItem
@@ -304,7 +202,7 @@ export class ObservableView extends React.Component<{
 							</Menu>,
 							{ left: e.clientX, top: e.clientY },
 							() => {
-								this.endSelected = false;
+								vm.endSelected = false;
 							}
 						);
 					}
@@ -326,6 +224,152 @@ export class ObservableView extends React.Component<{
 					stroke="black"
 				/>
 			</g>
+		);
+	}
+}
+
+@observer
+export class ObservableEventView extends React.Component<{
+	evt: ObservableEvent;
+	playground: PlaygroundViewModel;
+	idx: number;
+	x: number;
+	observable: ObservableViewModel;
+	timeOffsetConversion: TimeOffsetConversion;
+	height: number;
+	svgContext: SvgContext;
+}> {
+	render(): JSX.Element {
+		const {
+			evt,
+			x,
+			timeOffsetConversion,
+			observable,
+			playground,
+			svgContext,
+			idx,
+		} = this.props;
+
+		const center = point({
+			x,
+			y: timeOffsetConversion.getOffset(evt.time),
+		});
+
+		const isLarge =
+			playground.timedObjDragBehavior.isDataEqualTo(evt.id) ||
+			observable.selectedEventId === evt.id;
+
+		if (evt.data instanceof ChildObservableViewModel) {
+			return (
+				<g key={evt.id} className="part-sub-observable">
+					<SvgLine
+						className="part-connection-line"
+						start={center}
+						end={center.add({ x: evt.data.xOffset })}
+					/>
+					<ObservableView
+						height={this.props.height}
+						observable={evt.data}
+						playground={this.props.playground}
+						svgContext={this.props.svgContext}
+						timeOffsetConversion={timeOffsetConversion}
+						x={x + evt.data.xOffset}
+					/>
+				</g>
+			);
+		}
+
+		let displayValue = evt.data as any;
+		let color = "black";
+
+		if (typeof displayValue === "object" && displayValue) {
+			const d = evt.data as any;
+			if ("display" in d) {
+				displayValue = displayValue.display;
+			}
+
+			if ("color" in d) {
+				color = "" + d.color;
+			}
+		}
+
+		return (
+			<g key={evt.id} className="part-event">
+				<SvgCircle
+					className={classNames(
+						observable.observable instanceof
+							MutableObservableHistory && "mutable",
+						isLarge && "large"
+					)}
+					onContextMenu={e => {
+						if (
+							observable.observable instanceof
+							MutableObservableHistory
+						) {
+							e.preventDefault();
+							observable.selectedEventId = evt.id;
+							this.showEventContextMenu(
+								observable.observable,
+								evt,
+								e
+							);
+						}
+					}}
+					center={center}
+					radius={4}
+					stroke={color}
+					fill={color}
+					onMouseDown={e => {
+						if (evt instanceof MutableObservableEvent) {
+							handleMouseDownOnTimedObj(
+								e,
+								evt.id,
+								t => (evt.time = t),
+								playground,
+								svgContext,
+								timeOffsetConversion
+							);
+						}
+					}}
+				/>
+				<SvgText
+					childRef={text => {
+						if (!text) {
+							//this.widths.delete(idx);
+						} else {
+							this.props.observable.textWidths.set(
+								idx,
+								text.getBBox().width
+							);
+						}
+					}}
+					position={center.add(new Point(10, 0))}
+					textAnchor="start"
+					dominantBaseline="middle"
+				>
+					{formatValue(displayValue, 100)}
+				</SvgText>
+			</g>
+		);
+	}
+
+	private showEventContextMenu(
+		o: MutableObservableHistory<any>,
+		evt: ObservableEvent,
+		e: React.MouseEvent<SVGCircleElement, MouseEvent>
+	) {
+		ContextMenu.show(
+			<Menu>
+				<MenuItem
+					text="Delete"
+					icon="delete"
+					onClick={() => o.removeEvent(evt)}
+				/>
+			</Menu>,
+			{ left: e.clientX, top: e.clientY },
+			() => {
+				this.props.observable.selectedEventId = -1;
+			}
 		);
 	}
 }

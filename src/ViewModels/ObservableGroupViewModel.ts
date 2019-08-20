@@ -1,6 +1,7 @@
 import { observable, computed, autorun } from "mobx";
 import { ObservableGroup } from "../Model/ObservableGroups";
 import { ObservableViewModel } from "./ObservableViewModel";
+import { Disposable } from "@hediet/std/disposable";
 
 export class ObservableGroupViewModel {
 	@observable public dragX: number | undefined = undefined;
@@ -15,6 +16,8 @@ export class ObservableGroupViewModel {
 		);
 	}
 
+	public readonly dispose = Disposable.fn();
+
 	widthSum(count: number): number {
 		return Math.max(
 			10,
@@ -23,10 +26,15 @@ export class ObservableGroupViewModel {
 	}
 
 	constructor(public readonly group: ObservableGroup) {
-		autorun(() => {
-			this.observables = group.observables.map(
-				o => new ObservableViewModel(o)
-			);
+		this.dispose.track({
+			dispose: autorun(
+				() => {
+					this.observables = group.observables.map(
+						o => new ObservableViewModel(o)
+					);
+				},
+				{ name: "Update observable view models" }
+			),
 		});
 	}
 }

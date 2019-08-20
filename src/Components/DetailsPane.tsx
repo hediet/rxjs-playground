@@ -13,7 +13,7 @@ import {
 } from "@blueprintjs/core";
 import { MutableObservableGroup } from "../Model/MutableObservableGroup";
 import React = require("react");
-import { TSComputedObservableGroup2 } from "../Model/TSComputedObservableGroup2";
+import { TsComputedObservableGroup } from "../Model/TsComputedObservableGroup";
 import { PlaygroundViewModel } from "../ViewModels/PlaygroundViewModel";
 import { ObservableGroup } from "../Model/ObservableGroups";
 import { MonacoEditor } from "./MonacoEditor";
@@ -49,7 +49,7 @@ export class DetailsPane extends React.Component<{
 										text="Computed Observable"
 										onClick={() =>
 											playground.groups.addGroup(
-												new TSComputedObservableGroup2(
+												new TsComputedObservableGroup(
 													playground.typeScriptService,
 													playground.groups
 												)
@@ -129,7 +129,7 @@ export class ConfigComponent extends React.Component<{
 		const group = this.props.selectedGroup;
 		return (
 			<div className="component-config">
-				{group instanceof TSComputedObservableGroup2 && (
+				{group instanceof TsComputedObservableGroup && (
 					<div className="part-editor">
 						<MonacoEditor
 							key={group.id}

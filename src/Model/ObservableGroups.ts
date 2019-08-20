@@ -14,6 +14,7 @@ export class ObservableGroups {
 	}
 
 	public removeGroup(group: ObservableGroup) {
+		group.dispose();
 		this._groups.delete(group);
 	}
 
@@ -70,6 +71,9 @@ export class ObservableGroups {
 
 	@action
 	public clear() {
+		for (const g of this._groups) {
+			g.dispose();
+		}
 		this._groups.clear();
 	}
 }
@@ -81,10 +85,11 @@ export type SerializedObservable<T = {}> = {
 
 export abstract class ObservableGroup {
 	private static id = 1;
+	public readonly id = ObservableGroup.id++;
 
 	abstract get observables(): ReadonlyArray<ObservableHistory>;
 
-	public readonly id = ObservableGroup.id++;
+	public readonly dispose = Disposable.fn();
 
 	@observable public name: string = `obs${this.id}`;
 	@observable public position: number = 0;
@@ -120,7 +125,13 @@ export abstract class ObservableGroup {
 	public abstract reset(): void;
 }
 
+import jsonToTs from "json-to-ts";
+import { Disposable } from "@hediet/std/disposable";
+
 export abstract class ObservableHistory {
+	private static id = 1;
+	public readonly id = ObservableHistory.id++;
+
 	// are sorted by time
 	public abstract get events(): ReadonlyArray<ObservableEvent>;
 
@@ -133,6 +144,15 @@ export abstract class ObservableHistory {
 				? takeUntil(from([0]).pipe(delay(this.endTime, scheduler)))
 				: identity
 		);
+	}
+
+	public get typescriptType(): { typeDeclarations: string; type: string } {
+		const decls = jsonToTs({ root: this.events.map(e => e.data) });
+
+		return {
+			type: `O${this.id}.RootObject["root"][0]`,
+			typeDeclarations: `module O${this.id} { ${decls.join("\n")} }`,
+		};
 	}
 
 	public abstract get name(): string;

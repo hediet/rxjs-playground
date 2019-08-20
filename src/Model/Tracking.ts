@@ -12,17 +12,16 @@ import {
 	ObservableEvent,
 	ObservableGroups,
 } from "./ObservableGroups";
-import { computed, observable, autorun } from "mobx";
+import { computed, observable, trace } from "mobx";
 import { tap } from "rxjs/operators";
 import { ObservableComputer, Observables } from "./types";
 import { sortByNumericKey } from "../std/utils";
 
 export type TrackFn = <T>(name?: string) => MonoTypeOperatorFunction<T>;
 
-let id = 0;
-
 export class TrackingEvent implements ObservableEvent {
-	public readonly id = id++;
+	private static id = 0;
+	public readonly id = TrackingEvent.id++;
 
 	constructor(public readonly time: number, public readonly data: unknown) {}
 }
@@ -45,6 +44,37 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 			}
 		}
 		return observables;
+	}
+
+	@computed
+	public get observables(): ObservableHistory[] {
+		if (this.dispose.disposed) {
+			throw new Error("Object is disposed");
+		}
+
+		const scheduler = new VirtualTimeScheduler();
+		const trackedObservables = new Array<ObservableHistory>();
+		const visibleObservables = this.getVisibleObservables(scheduler);
+		const trackFn = this.getTrackFn(trackedObservables, scheduler);
+
+		try {
+			const obsOrError = this.getObservable(
+				visibleObservables,
+				scheduler,
+				trackFn
+			);
+			if (typeof obsOrError === "object" && "error" in obsOrError) {
+				console.error(obsOrError.error);
+			} else {
+				obsOrError.pipe(trackFn(() => this.name)).subscribe();
+				scheduler.flush();
+			}
+		} catch (e) {
+			console.error(e);
+			return [];
+		}
+
+		return trackedObservables;
 	}
 
 	private getTrackFn(
@@ -102,9 +132,7 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 		);
 	}
 
-	private getVisibleObservables(
-		scheduler: SchedulerLike
-	): Observables<never> {
+	private getVisibleObservables(scheduler: SchedulerLike): Observables {
 		const visibleObservables = {
 			get: <T>(name: string): Observable<T> => {
 				const o = this.visibleObservables.get(name);
@@ -124,35 +152,8 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 		return visibleObservables;
 	}
 
-	@computed
-	public get observables(): ObservableHistory[] {
-		const scheduler = new VirtualTimeScheduler();
-		const trackedObservables = new Array<ObservableHistory>();
-		const visibleObservables = this.getVisibleObservables(scheduler);
-		const trackFn = this.getTrackFn(trackedObservables, scheduler);
-
-		try {
-			const obsOrError = this.getObservable(
-				visibleObservables,
-				scheduler,
-				trackFn
-			);
-			if (typeof obsOrError === "object" && "error" in obsOrError) {
-				console.error(obsOrError.error);
-			} else {
-				obsOrError.pipe(trackFn(() => this.name)).subscribe();
-				scheduler.flush();
-			}
-		} catch (e) {
-			console.error(e);
-			return [];
-		}
-
-		return trackedObservables;
-	}
-
 	protected abstract getObservable(
-		observables: Observables<string>,
+		observables: Observables,
 		scheduler: SchedulerLike,
 		track: TrackFn
 	): Observable<unknown> | { error: string };

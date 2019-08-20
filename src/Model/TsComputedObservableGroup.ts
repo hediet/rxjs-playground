@@ -4,7 +4,7 @@ import { observable, computed, autorun, action } from "mobx";
 import { ObservableComputer, Observables, TrackFn } from "./types";
 import { ObservableGroups, SerializedObservable } from "./ObservableGroups";
 import * as ts from "typescript";
-import { TsModel, TSService2 } from "./TSService2";
+import { TsModel, TsService } from "./TsService";
 
 const initialProgram = `import * as rx from "rxjs";
 import * as op from "rxjs/operators";
@@ -18,7 +18,7 @@ visualize((observables, scheduler, track) => {
 });
 `;
 
-export class TSComputedObservableGroup2 extends TrackingObservableGroupBase {
+export class TsComputedObservableGroup extends TrackingObservableGroupBase {
 	@observable src: string = "";
 
 	public serialize(): SerializedObservable<{ src: string }> {
@@ -32,7 +32,7 @@ export class TSComputedObservableGroup2 extends TrackingObservableGroupBase {
 	public readonly model: TsModel;
 
 	constructor(
-		tsService: TSService2,
+		tsService: TsService,
 		groups: ObservableGroups,
 		data?: SerializedObservable<{ src: string }>
 	) {
@@ -43,17 +43,44 @@ export class TSComputedObservableGroup2 extends TrackingObservableGroupBase {
 			this.src = data.src;
 			this.name = data.name;
 		}
-		this.model = tsService.createTypeScriptModel(this.src);
+		this.model = this.dispose.track(
+			tsService.createTypeScriptModel(this.src)
+		);
 
-		autorun(() => {
-			this.model.registerSpecificTypes([
-				...this.visibleObservables.keys(),
-			]);
+		this.dispose.track({
+			dispose: autorun(
+				() => {
+					if (this.dispose.disposed) {
+						throw new Error("Object is disposed");
+					}
+
+					const visibleObservables = [
+						...this.visibleObservables.values(),
+					].map(o => ({
+						name: o.name,
+						types: o.typescriptType,
+					}));
+
+					this.model.registerSpecificTypes(
+						visibleObservables.map(o => ({
+							name: o.name,
+							eventDataType: o.types.type,
+						})),
+						visibleObservables
+							.map(o => o.types.typeDeclarations)
+							.join("\n")
+					);
+				},
+				{ name: "Update types that consider visible observables" }
+			),
 		});
-		this.model.textModel.onDidChangeContent(() => {
-			this.src = this.model.textModel.getValue();
-			this.compile();
-		});
+
+		this.dispose.track(
+			this.model.textModel.onDidChangeContent(() => {
+				this.src = this.model.textModel.getValue();
+				this.compile();
+			})
+		);
 
 		// don't use monaco to compile for the first time to speed things up
 		this.transpiledJs = ts.transpile(this.model.textModel.getValue());
