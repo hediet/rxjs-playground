@@ -3,6 +3,7 @@ import path = require("path");
 import HtmlWebpackPlugin = require("html-webpack-plugin");
 import MonacoWebpackPlugin = require("monaco-editor-webpack-plugin");
 import ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
+import { CleanWebpackPlugin } from "clean-webpack-plugin";
 
 const r = (file: string) => path.resolve(__dirname, file);
 
@@ -33,6 +34,7 @@ module.exports = {
 		],
 	},
 	plugins: [
+		new CleanWebpackPlugin(),
 		new HtmlWebpackPlugin(),
 		new MonacoWebpackPlugin(),
 		new ForkTsCheckerWebpackPlugin(),

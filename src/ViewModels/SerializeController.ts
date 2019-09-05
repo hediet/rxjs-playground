@@ -7,8 +7,9 @@ import { deserializeGroups } from "../Model/deserializeGroups";
 import { TsComputedObservableGroup } from "../Model/TsComputedObservableGroup";
 import { Disposable } from "@hediet/std/disposable";
 import { PlaygroundViewModel } from "./PlaygroundViewModel";
-import * as jsonUrl from "json-url";
+//import * as jsonUrl from "json-url";
 import { IDisposable } from "monaco-editor";
+import { encodeData, decodeData } from "./lzmaCompressor";
 
 export class SerializeController {
 	public readonly dispose = Disposable.fn();
@@ -23,13 +24,13 @@ export class SerializeController {
 		this.dispose.track(store);
 	}
 
-	private readonly codec = jsonUrl("lzma");
+	//private readonly codec = jsonUrl("lzma");
 
-	private async loadFrom(serializedData: string | undefined): Promise<void> {
+	private loadFrom(serializedData: string | undefined): void {
 		const groups = this.playground.groups;
 
 		if (serializedData) {
-			const data: any = await this.codec.decompress(serializedData);
+			const data: any = decodeData(serializedData);
 			deserializeGroups(groups, this.playground.typeScriptService, data);
 		} else {
 			// default data
@@ -51,7 +52,7 @@ export class SerializeController {
 		}
 	}
 
-	private async init() {
+	private init() {
 		const groups = this.playground.groups;
 
 		const compressedData = this.store.get();
@@ -72,9 +73,7 @@ export class SerializeController {
 		this.debounceSubject
 			.pipe(debounceTime(1000))
 			.forEach(async serializedData => {
-				const compressedData = await this.codec.compress(
-					serializedData
-				);
+				const compressedData = encodeData(serializedData);
 				this.store.set(compressedData);
 			});
 
