@@ -11,9 +11,8 @@ import * as op from "rxjs/operators";
 import { visualize } from "@hediet/rxjs-visualizer";
 
 visualize((observables, scheduler, track) => {
-	return observables.obs1.pipe(
-		op.groupBy(v => (v as any) % 3),
-		op.map(v => v.pipe(op.take(2)))
+	return observables.events.pipe(
+		op.map(v => v * 2)
 	);
 });
 `;

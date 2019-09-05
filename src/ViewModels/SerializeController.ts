@@ -34,13 +34,20 @@ export class SerializeController {
 		} else {
 			// default data
 			groups.clear();
-			groups.addGroup(new MutableObservableGroup());
-			groups.addGroup(
-				new TsComputedObservableGroup(
-					this.playground.typeScriptService,
-					groups
-				)
+			const g1 = new MutableObservableGroup();
+			g1.name = "events";
+			g1.history.addEvent(300, 1);
+			g1.history.addEvent(500, 2);
+			g1.history.addEvent(700, 3);
+
+			groups.addGroup(g1);
+
+			const g2 = new TsComputedObservableGroup(
+				this.playground.typeScriptService,
+				groups
 			);
+			g2.name = "computed";
+			groups.addGroup(g2);
 		}
 	}
 
