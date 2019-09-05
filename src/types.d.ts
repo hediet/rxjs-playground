@@ -1,4 +1,4 @@
-declare module "lzma/src/lzma_worker-min" {
+declare module "lzma/src/lzma_worker" {
 	const x: any;
 	export = x;
 }
