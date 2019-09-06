@@ -7,6 +7,7 @@
 	},
 	"dependencies": {
 		"@blueprintjs/core": "^3.17.1",
+		"@blueprintjs/select": "^3.10.0",
 		"@hediet/std": "^0.6.0",
 		"@types/html-webpack-plugin": "^3.2.0",
 		"@types/popper.js": "^1.11.0",
@@ -15,7 +16,6 @@
 		"blueprintjs": "^0.0.8",
 		"classnames": "^2.2.6",
 		"json-to-ts": "^1.6.0",
-		"json-url": "^2.4.2",
 		"lzma": "^2.3.2",
 		"messagepack": "^1.1.10",
 		"mobx": "^5.10.1",

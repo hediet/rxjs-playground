@@ -1,4 +1,4 @@
-import { autorun } from "mobx";
+import { autorun, runInAction, observable } from "mobx";
 import { SerializedObservable } from "../Model/ObservableGroups";
 import { MutableObservableGroup } from "../Model/MutableObservableGroup";
 import { Subject } from "rxjs";
@@ -7,9 +7,8 @@ import { deserializeGroups } from "../Model/deserializeGroups";
 import { TsComputedObservableGroup } from "../Model/TsComputedObservableGroup";
 import { Disposable } from "@hediet/std/disposable";
 import { PlaygroundViewModel } from "./PlaygroundViewModel";
-//import * as jsonUrl from "json-url";
 import { IDisposable } from "monaco-editor";
-import { encodeData, decodeData } from "./lzmaCompressor";
+import { encodeData, decodeData } from "../std/lzmaCompressor";
 
 export class SerializeController {
 	public readonly dispose = Disposable.fn();
@@ -18,13 +17,11 @@ export class SerializeController {
 
 	constructor(
 		private readonly playground: PlaygroundViewModel,
-		private readonly store: IStore = new Store()
+		private readonly store: StringStore
 	) {
 		this.init();
 		this.dispose.track(store);
 	}
-
-	//private readonly codec = jsonUrl("lzma");
 
 	private loadFrom(serializedData: string | undefined): void {
 		const groups = this.playground.groups;
@@ -52,14 +49,20 @@ export class SerializeController {
 		}
 	}
 
+	private disableUpdate = false;
+
 	private init() {
 		const groups = this.playground.groups;
 
-		const compressedData = this.store.get();
-		this.loadFrom(compressedData);
-
-		this.store.registerOnChangeCallback(compressedData => {
-			this.loadFrom(compressedData);
+		this.dispose.track({
+			dispose: autorun(() => {
+				// always trigger dependency to store.value
+				const val = this.store.get();
+				if (this.disableUpdate) {
+					return;
+				}
+				this.loadFrom(val);
+			}),
 		});
 
 		const autorunHandle = autorun(
@@ -74,7 +77,9 @@ export class SerializeController {
 			.pipe(debounceTime(1000))
 			.forEach(async serializedData => {
 				const compressedData = encodeData(serializedData);
+				this.disableUpdate = true;
 				this.store.set(compressedData);
+				this.disableUpdate = false;
 			});
 
 		this.dispose.track(
@@ -86,24 +91,42 @@ export class SerializeController {
 	}
 }
 
-interface IStore extends IDisposable {
+export interface StringStore extends IDisposable {
 	get(): string | undefined;
 	set(value: string): void;
-	registerOnChangeCallback(
-		onChange: (value: string | undefined) => void
-	): void;
 }
 
-class Store implements IStore {
-	private lastValue: string | undefined = this.get();
+export class UrlHashOrPostMessageStore implements StringStore {
+	@observable private value: string | undefined = this.get();
 	public readonly dispose = Disposable.fn();
 
+	constructor() {
+		const fn = () => {
+			const next = window.location.hash.substr(1);
+			if (this.value !== next) {
+				this.value = next;
+				runInAction(() => {
+					this.value = next;
+				});
+			}
+		};
+
+		fn();
+
+		window.addEventListener("hashchange", fn);
+		this.dispose.track({
+			dispose: () => {
+				window.removeEventListener("hashchange", fn);
+			},
+		});
+	}
+
 	get(): string | undefined {
-		return window.location.hash.substr(1);
+		return this.value;
 	}
 
 	set(value: string): void {
-		this.lastValue = value;
+		this.value = value;
 		if (window.parent !== window) {
 			parent.postMessage(
 				{ kind: "setSerializedData", serialized: value },
@@ -112,23 +135,5 @@ class Store implements IStore {
 		} else {
 			window.location.hash = value;
 		}
-	}
-
-	registerOnChangeCallback(
-		onChange: (value: string | undefined) => void
-	): void {
-		const fn = () => {
-			const next = this.get();
-			if (this.lastValue !== next) {
-				this.lastValue = next;
-				onChange(next);
-			}
-		};
-		window.addEventListener("hashchange", fn);
-		this.dispose.track({
-			dispose: () => {
-				window.removeEventListener("hashchange", fn);
-			},
-		});
 	}
 }

@@ -49,7 +49,8 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 	@computed
 	public get observables(): ObservableHistory[] {
 		if (this.dispose.disposed) {
-			throw new Error("Object is disposed");
+			console.log(`computed ${this.name}.observables, but is disposed`);
+			return [];
 		}
 
 		const scheduler = new VirtualTimeScheduler();

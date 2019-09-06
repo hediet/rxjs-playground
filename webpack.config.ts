@@ -36,7 +36,9 @@ module.exports = {
 	plugins: [
 		new CleanWebpackPlugin(),
 		new HtmlWebpackPlugin(),
-		new MonacoWebpackPlugin(),
+		new MonacoWebpackPlugin({
+			languages: ["javascript", "json", "typescript"],
+		}),
 		new ForkTsCheckerWebpackPlugin(),
 	],
 } as webpack.Configuration;

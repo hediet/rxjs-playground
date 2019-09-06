@@ -3,6 +3,8 @@ import * as msgpack from "messagepack";
 import * as base64 from "base64-js";
 
 export function encodeData(json: unknown): string {
+	// normalize undefined
+	json = JSON.parse(JSON.stringify(json));
 	const data = msgpack.encode(json);
 	const compressed = lzma.LZMA.compress(data, 9);
 	const compressedStr = base64.fromByteArray(compressed);
@@ -24,3 +26,6 @@ export function decodeData(compressedStr: string): unknown {
 	const origData = msgpack.decode(new Uint8Array(decompressed));
 	return origData;
 }
+
+// for tooling
+(window as any).compressor = { encodeData, decodeData };
