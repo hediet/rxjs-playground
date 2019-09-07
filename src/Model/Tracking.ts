@@ -54,6 +54,7 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 		}
 
 		const scheduler = new VirtualTimeScheduler();
+		scheduler.maxFrames = 100 * 1000 * 1000;
 		const trackedObservables = new Array<ObservableHistory>();
 		const visibleObservables = this.getVisibleObservables(scheduler);
 		const trackFn = this.getTrackFn(trackedObservables, scheduler);

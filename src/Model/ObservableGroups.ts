@@ -8,11 +8,13 @@ export class ObservableGroups {
 		return this._groups;
 	}
 
+	@action
 	public addGroup(group: ObservableGroup) {
 		group.position = this.groups.size;
 		this._groups.add(group);
 	}
 
+	@action
 	public removeGroup(group: ObservableGroup) {
 		group.dispose();
 		this._groups.delete(group);

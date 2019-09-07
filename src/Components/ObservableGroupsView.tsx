@@ -23,16 +23,19 @@ export class ObservableGroupsView extends React.Component<{
 	private readonly _updateGroupViewModelsReaction = reaction(
 		() => [...this.props.playground.groups.groups],
 		groups => {
-			for (const g of this.groups) {
-				g.dispose();
-			}
+			const oldGroups = this.groups;
 			this.groups = groups.map(
 				g =>
 					this.groups.find(w => w.group === g) ||
 					new ObservableGroupViewModel(g)
 			);
+			for (const g of oldGroups) {
+				if (!this.groups.find(g_ => g_ === g)) {
+					g.dispose();
+				}
+			}
 		},
-		{ fireImmediately: true }
+		{ fireImmediately: true, name: "updateGroupViewModelsReaction" }
 	);
 
 	public componentWillUnmount() {
