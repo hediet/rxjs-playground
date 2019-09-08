@@ -45,21 +45,24 @@ export class ObservableGroupsView extends React.Component<{
 	}
 
 	@disposeOnUnmount
-	private readonly _setGroupOrderAfterDragging = autorun(() => {
-		if (this.props.playground.groupDragBehavior.activeOperation) {
-			this.props.playground.groupDragBehavior.activeOperation.onEnd.sub(
-				() => {
-					runInAction("Set group order after dragging", () => {
-						if (this.lastGroupOrderWhileDragging) {
-							this.lastGroupOrderWhileDragging.forEach(
-								(val, idx) => (val.group.position = idx)
-							);
-						}
-					});
-				}
-			);
-		}
-	});
+	private readonly _setGroupOrderAfterDragging = autorun(
+		() => {
+			if (this.props.playground.groupDragBehavior.activeOperation) {
+				this.props.playground.groupDragBehavior.activeOperation.onEnd.sub(
+					() => {
+						runInAction("Set group order after dragging", () => {
+							if (this.lastGroupOrderWhileDragging) {
+								this.lastGroupOrderWhileDragging.forEach(
+									(val, idx) => (val.group.position = idx)
+								);
+							}
+						});
+					}
+				);
+			}
+		},
+		{ name: "_setGroupOrderAfterDragging" }
+	);
 
 	private lastGroupOrderWhileDragging:
 		| ObservableGroupViewModel[]
@@ -164,12 +167,15 @@ export class ObservableGroupsView extends React.Component<{
 	}
 
 	private debounceSubject = new Subject();
-	@observable private timeOffsetConversion = this.getTimeOffsetConversion();
+	@observable.ref
+	private timeOffsetConversion = this.getTimeOffsetConversion();
 
 	private _disposable = this.debounceSubject
 		.pipe(debounceTime(1000))
 		.forEach(() => {
-			this.timeOffsetConversion = this.getTimeOffsetConversion();
+			runInAction("Update scaling (debounced)", () => {
+				this.timeOffsetConversion = this.getTimeOffsetConversion();
+			});
 		});
 
 	@disposeOnUnmount
@@ -186,7 +192,12 @@ export class ObservableGroupsView extends React.Component<{
 
 	private x = setInterval(() => {
 		if (this.div) {
-			this.minSvgHeight = this.div.clientHeight - 1;
+			const div = this.div;
+			if (this.minSvgHeight !== div.clientHeight - 1) {
+				runInAction("Update svg height", () => {
+					this.minSvgHeight = div.clientHeight - 1;
+				});
+			}
 		}
 	}, 200);
 
@@ -194,7 +205,9 @@ export class ObservableGroupsView extends React.Component<{
 		this.div = div;
 		if (div) {
 			div.addEventListener("scroll", () => {
-				this.scroll++;
+				runInAction("Update scroll", () => {
+					this.scroll++;
+				});
 			});
 		}
 	};
@@ -272,11 +285,9 @@ export class ObservableGroupsView extends React.Component<{
 				<svg
 					ref={svg => this.setSvg(svg)}
 					height={height}
-					style={
-						{
-							//minWidth: this.widthsSum(groups.groups.length) + 100,
-						}
-					}
+					style={{
+						minWidth: this.width + 40 + 100 - 20,
+					}}
 					className={classNames(
 						playground.timedObjDragBehavior.isActive &&
 							"draggingEvent"

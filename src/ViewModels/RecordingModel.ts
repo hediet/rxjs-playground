@@ -28,12 +28,11 @@ export class RecordingModel {
 		return this.currentRecordTime || this.startTime;
 	}
 
-	constructor() {
-		this.updateCurrentDateLoop();
-	}
-
 	private updateCurrentDateLoop() {
 		requestAnimationFrame(() => {
+			if (!this.recordStartDateTime) {
+				return;
+			}
 			runInAction("Update time", () => {
 				this.currentDate = new Date();
 			});
@@ -51,6 +50,7 @@ export class RecordingModel {
 
 	@action
 	public start(): void {
+		this.updateCurrentDateLoop();
 		this.startTimes.push(this.startTime);
 		this.recordStartDateTime = new Date();
 	}

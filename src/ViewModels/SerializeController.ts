@@ -1,4 +1,4 @@
-import { autorun, runInAction, observable } from "mobx";
+import { autorun, runInAction, observable, trace, reaction } from "mobx";
 import { SerializedObservable } from "../Model/ObservableGroups";
 import { MutableObservableGroup } from "../Model/MutableObservableGroup";
 import { Subject } from "rxjs";
@@ -55,14 +55,17 @@ export class SerializeController {
 		const groups = this.playground.groups;
 
 		this.dispose.track({
-			dispose: autorun(() => {
-				// always trigger dependency to store.value
-				const val = this.store.get();
-				if (this.disableUpdate) {
-					return;
-				}
-				this.loadFrom(val);
-			}),
+			dispose: reaction(
+				() => this.store.get(),
+				val => {
+					// always trigger dependency to store.value
+					if (this.disableUpdate) {
+						return;
+					}
+					this.loadFrom(val);
+				},
+				{ name: "load from store", fireImmediately: true }
+			),
 		});
 
 		const autorunHandle = autorun(

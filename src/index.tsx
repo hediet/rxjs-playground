@@ -3,8 +3,9 @@ import * as ReactDOM from "react-dom";
 import "./style.scss";
 import { Model } from "./Model";
 import Components = require("./Components/GUI");
+import { runInAction } from "mobx";
 
-const model = new Model();
+const model = runInAction("Create model", () => new Model());
 
 function render(target: HTMLDivElement) {
 	const c = require("./Components/GUI") as typeof Components;

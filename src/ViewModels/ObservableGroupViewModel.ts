@@ -1,4 +1,4 @@
-import { observable, computed, autorun } from "mobx";
+import { observable, computed, autorun, reaction } from "mobx";
 import { ObservableGroup } from "../Model/ObservableGroups";
 import { ObservableViewModel } from "./ObservableViewModel";
 import { Disposable } from "@hediet/std/disposable";
@@ -27,13 +27,12 @@ export class ObservableGroupViewModel {
 
 	constructor(public readonly group: ObservableGroup) {
 		this.dispose.track({
-			dispose: autorun(
-				() => {
-					this.observables = group.observables.map(
-						o => new ObservableViewModel(o)
-					);
+			dispose: reaction(
+				() => group.observables.map(o => new ObservableViewModel(o)),
+				observables => {
+					this.observables = observables;
 				},
-				{ name: "Update observable view models" }
+				{ name: "Update observable view models", fireImmediately: true }
 			),
 		});
 	}

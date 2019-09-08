@@ -77,6 +77,11 @@
     mobx "^5.10.0"
     sinon "^7.2.7"
 
+"@knuddels/mobx-logger@^1.1.0":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@knuddels/mobx-logger/-/mobx-logger-1.1.0.tgz#660d84c760dd88ada04cba77e9f2a04305021014"
+  integrity sha512-0S1DoQwzZ5nozxw4hgjnFcTqJRC/DAN1j4FHiA0d+L/ZFul3GsYJ23Wv/RExv0PvQeQn4FBYWjP4XlKQVWMSwA==
+
 "@sinonjs/commons@^1", "@sinonjs/commons@^1.0.2", "@sinonjs/commons@^1.4.0":
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/@sinonjs/commons/-/commons-1.4.0.tgz#7b3ec2d96af481d7a0321252e7b1c94724ec5a78"

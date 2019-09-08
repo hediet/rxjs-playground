@@ -13,7 +13,7 @@ import {
 	ObservableGroups,
 } from "./ObservableGroups";
 import { computed, observable, trace } from "mobx";
-import { tap } from "rxjs/operators";
+import { tap, take } from "rxjs/operators";
 import { ObservableComputer, Observables } from "./types";
 import { sortByNumericKey } from "../std/utils";
 
@@ -54,7 +54,7 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 		}
 
 		const scheduler = new VirtualTimeScheduler();
-		scheduler.maxFrames = 100 * 1000 * 1000;
+		scheduler.maxFrames = 1000 * 1000 * 1000;
 		const trackedObservables = new Array<ObservableHistory>();
 		const visibleObservables = this.getVisibleObservables(scheduler);
 		const trackFn = this.getTrackFn(trackedObservables, scheduler);
@@ -108,6 +108,7 @@ export abstract class TrackingObservableGroupBase extends ObservableGroup {
 	): Observable<T> {
 		history.startTime = scheduler.now();
 		return source.pipe(
+			take(100),
 			tap({
 				next: n => {
 					let data: unknown = n;
