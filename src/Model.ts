@@ -9,7 +9,6 @@ import { MobxConsoleLogger } from "@knuddels/mobx-logger";
 import * as mobx from "mobx";
 
 const logger = new MobxConsoleLogger(mobx, { useGroups: true });
-window.logger = logger;
 
 export class Model {
 	public readonly playground = new PlaygroundViewModel();
