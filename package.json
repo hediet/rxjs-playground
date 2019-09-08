@@ -9,6 +9,7 @@
 		"@blueprintjs/core": "^3.17.1",
 		"@blueprintjs/select": "^3.10.0",
 		"@hediet/std": "^0.6.0",
+		"@knuddels/mobx-logger": "^1.1.0",
 		"@types/html-webpack-plugin": "^3.2.0",
 		"@types/popper.js": "^1.11.0",
 		"@types/webpack": "^4.4.33",
